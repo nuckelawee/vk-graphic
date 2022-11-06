@@ -3,10 +3,10 @@
 #ifdef DEBUG
 
 void VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(
-      VkPhysicalDevice device) {
+    const VkPhysicalDevice& gpu) {
 
     GetInstanceLayerProperties();
-    GetDeviceLayerProperties(device);
+    GetDeviceLayerProperties(gpu);
 }
 
 void VulkanLayersAndExtensions::PrintLayerDescriptions(
@@ -59,47 +59,49 @@ void VulkanLayersAndExtensions::GetInstanceExtensionProperties(
 }
 
 VkResult VulkanLayersAndExtensions::GetDeviceLayerProperties(
-      VkPhysicalDevice device) {
+    const VkPhysicalDevice& gpu) {
 
-    std::vector<LayerProperties> deviceLayerProperties;
+    std::vector<LayerProperties> gpuLayerProperties;
     uint32_t layerCount;
     VkResult result;
 
-    result = vkEnumerateDeviceLayerProperties(device, &layerCount, nullptr);
+    result = vkEnumerateDeviceLayerProperties(gpu, &layerCount, nullptr);
     if(layerCount == 0) { return result; }
     
     VkLayerProperties pProperties[layerCount];
-    result = vkEnumerateDeviceLayerProperties(device, &layerCount, pProperties);
-    deviceLayerProperties.resize(layerCount);
+    result = vkEnumerateDeviceLayerProperties(gpu, &layerCount, pProperties);
+    gpuLayerProperties.resize(layerCount);
 
     for(size_t i = 0; i < layerCount; i++) {
-        deviceLayerProperties[i].layer = pProperties[i];
+        gpuLayerProperties[i].layer = pProperties[i];
     }
-    GetDeviceExtensionProperties(deviceLayerProperties, device);
+    GetDeviceExtensionProperties(gpuLayerProperties, gpu);
 
-    PrintLayerDescriptions(deviceLayerProperties);
+    PrintLayerDescriptions(gpuLayerProperties);
     return result;
 }
 
 void VulkanLayersAndExtensions::GetDeviceExtensionProperties(
-      std::vector<LayerProperties>& layerProperties, VkPhysicalDevice device) {
+      std::vector<LayerProperties>& layerProperties
+    , const VkPhysicalDevice& gpu) {
 
     for(size_t i = 0; i < layerProperties.size(); i++) {
         const char* layerName = layerProperties[i].layer.layerName;
         uint32_t extensionsCount;
 
-        vkEnumerateDeviceExtensionProperties(device, layerName, &extensionsCount
+        vkEnumerateDeviceExtensionProperties(gpu, layerName, &extensionsCount
             , nullptr);
         if(extensionsCount == 0) { continue; }
         layerProperties[i].extensions.resize(extensionsCount);
-        vkEnumerateDeviceExtensionProperties(device, layerName, &extensionsCount
+        vkEnumerateDeviceExtensionProperties(gpu, layerName, &extensionsCount
             , layerProperties[i].extensions.data());
     }
 }
 #endif
 
 int32_t VulkanLayersAndExtensions::LayerExist(const char* pLayer
-    , const VkLayerProperties *pAvailableLayers, uint32_t layerCount) {
+    , const VkLayerProperties *pAvailableLayers
+    , uint32_t layerCount) const {
     
     for(uint32_t i = 0; i < layerCount; i++) {
         if(strcmp(pLayer, pAvailableLayers[i].layerName) == 0)
@@ -109,7 +111,8 @@ int32_t VulkanLayersAndExtensions::LayerExist(const char* pLayer
 }
 
 int32_t VulkanLayersAndExtensions::ExtensionExist(const char* pExtension
-    , const VkExtensionProperties *pAvailableExtensions, uint32_t extensionCount) {
+    , const VkExtensionProperties *pAvailableExtensions
+    , uint32_t extensionCount) const {
 
     for(uint32_t i = 0; i < extensionCount; i++) {
         if(strcmp(pExtension, pAvailableExtensions[i].extensionName) == 0)
@@ -123,16 +126,27 @@ VkResult VulkanLayersAndExtensions::RequestInstanceLayers(
 
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-    if(layerCount == 0 || layerCount < layers.size())
-    { return VK_ERROR_LAYER_NOT_PRESENT; }
+    if(layerCount == 0 || layerCount < layers.size()) {
+#ifdef DEBUG
+        std::cerr << "\nWARNING [ Instance layer request ]\n---> "\
+            "Layer not present\n\n";
+#endif
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    }
 
     VkLayerProperties pAvailableLayers[layerCount];
     vkEnumerateInstanceLayerProperties(&layerCount, pAvailableLayers);
 
     for(size_t i = 0; i < layers.size(); i++) {
-        if(LayerExist(layers[i], pAvailableLayers, layerCount) == -1)
-        { return VK_ERROR_LAYER_NOT_PRESENT; }
-        enableInstanceLayers.push_back(pAvailableLayers[i]);
+        int32_t layerIndex = LayerExist(layers[i], pAvailableLayers, layerCount);
+        if(layerIndex == -1) {
+#ifdef DEBUG
+            std::cerr << "\nWARNING [ Instance layer request ]\n---> "\
+                "Layer not present\n\n";
+#endif
+            return VK_ERROR_LAYER_NOT_PRESENT;
+        }
+        enableInstanceLayers.push_back(pAvailableLayers[layerIndex]);
     }
     return VK_SUCCESS;
 }
@@ -142,56 +156,140 @@ VkResult VulkanLayersAndExtensions::RequestInstanceExtensions(
 
     uint32_t extensionCount;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-    if(extensionCount == 0 || extensionCount < extensions.size())
-    { return VK_ERROR_EXTENSION_NOT_PRESENT; }
+    if(extensionCount == 0 || extensionCount < extensions.size()) {
+#ifdef DEBUG
+        std::cerr << "\nWARNING [ Instance extension request ]\n---> "\
+            "Extension not present\n\n";
+#endif
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
 
     VkExtensionProperties pAvailableExtensions[extensionCount];
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount
         , pAvailableExtensions);
 
     for(size_t i = 0; i < extensions.size(); i++) {
-        if(ExtensionExist(extensions[i], pAvailableExtensions, extensionCount) == -1)
-        { return VK_ERROR_EXTENSION_NOT_PRESENT; }
-        enableInstanceExtensions.push_back(pAvailableExtensions[i]);
+        int32_t extensionIndex = ExtensionExist(extensions[i]
+            , pAvailableExtensions, extensionCount);
+        if(extensionIndex == -1) {
+#ifdef DEBUG
+            std::cerr << "\nWARNING [ Instance extension request ]\n---> "\
+                "Extension not present\n\n";
+#endif
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+        enableInstanceExtensions.push_back(pAvailableExtensions[extensionIndex]);
     }
     return VK_SUCCESS;
 }
 
 VkResult VulkanLayersAndExtensions::RequestDeviceLayers(
-      const std::vector<const char*>& layers, VkPhysicalDevice device) {
+      const std::vector<const char*>& layers, const VkPhysicalDevice& gpu) {
 
     uint32_t layerCount;
-    vkEnumerateDeviceLayerProperties(device, &layerCount, nullptr);
-    if(layerCount == 0 || layerCount < layers.size())
-    { return VK_ERROR_LAYER_NOT_PRESENT; }
+    vkEnumerateDeviceLayerProperties(gpu, &layerCount, nullptr);
+    if(layerCount == 0 || layerCount < layers.size()) {
+#ifdef DEBUG
+        std::cerr << "\nWARNING [ Device layer request ]\n---> "\
+            "Layer not present\n\n";
+#endif
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    }
 
     VkLayerProperties pAvailableLayers[layerCount];
-    vkEnumerateDeviceLayerProperties(device, &layerCount, pAvailableLayers);
+    vkEnumerateDeviceLayerProperties(gpu, &layerCount, pAvailableLayers);
 
     for(size_t i = 0; i < layers.size(); i++) {
-        if(LayerExist(layers[i], pAvailableLayers, layerCount) == -1)
-        { return VK_ERROR_LAYER_NOT_PRESENT; }
-        enableDeviceLayers.push_back(pAvailableLayers[i]);
+        int32_t layerIndex = LayerExist(layers[i], pAvailableLayers, layerCount);
+        if(layerIndex == -1) {
+#ifdef DEBUG
+            std::cerr << "\nWARNING [ Device layer request ]\n---> "\
+                "Layer not present\n\n";
+#endif
+            return VK_ERROR_LAYER_NOT_PRESENT;
+        }
+        enableDeviceLayers.push_back(pAvailableLayers[layerIndex]);
     }
     return VK_SUCCESS;
 }
 
 VkResult VulkanLayersAndExtensions::RequestDeviceExtensions(
-      const std::vector<const char*>& extensions, VkPhysicalDevice device) {
+      const std::vector<const char*>& extensions, const VkPhysicalDevice& gpu) {
 
     uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-    if(extensionCount == 0 || extensionCount < extensions.size())
-    { return VK_ERROR_EXTENSION_NOT_PRESENT; }
+    vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, nullptr);
+    if(extensionCount == 0 || extensionCount < extensions.size()) {
+#ifdef DEBUG
+        std::cerr << "\nWARNING [ Device extension request ]\n---> "\
+            "Extension not present\n\n";
+#endif
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
 
     VkExtensionProperties pAvailableExtensions[extensionCount];
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount
+    vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount
         , pAvailableExtensions);
 
     for(size_t i = 0; i < extensions.size(); i++) {
-        if(ExtensionExist(extensions[i], pAvailableExtensions, extensionCount) == -1)
-        { return VK_ERROR_EXTENSION_NOT_PRESENT; }
-        enableDeviceExtensions.push_back(pAvailableExtensions[i]);
+        int32_t extensionIndex = ExtensionExist(extensions[i]
+            , pAvailableExtensions, extensionCount);
+        if(extensionIndex == -1) {
+#ifdef DEBUG
+            std::cerr << "\nWARNING [ Device extension request ]\n---> "\
+                "Extension not present\n\n";
+#endif
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+        enableDeviceExtensions.push_back(pAvailableExtensions[extensionIndex]);
     }
     return VK_SUCCESS;
 }
+
+const std::vector<VkLayerProperties>&
+    VulkanLayersAndExtensions::GetInstanceLayers() const
+{ return enableInstanceLayers; }
+
+std::vector<const char*> VulkanLayersAndExtensions::GetInstanceLayerNames() const {
+    std::vector<const char*> layerNames(enableInstanceLayers.size());
+    for(size_t i = 0; i < layerNames.size(); i++) {
+        layerNames[i] = enableInstanceLayers[i].layerName;
+    }
+    return layerNames;
+}
+    
+const std::vector<VkExtensionProperties>&
+    VulkanLayersAndExtensions::GetInstanceExtensions() const
+{ return enableInstanceExtensions; }
+
+std::vector<const char*> VulkanLayersAndExtensions::GetInstanceExtensionNames() const {
+    std::vector<const char*> extensionNames(enableInstanceExtensions.size());
+    for(size_t i = 0; i < extensionNames.size(); i++) {
+        extensionNames[i] = enableInstanceExtensions[i].extensionName;
+    }
+    return extensionNames;
+}
+   
+const std::vector<VkLayerProperties>& 
+    VulkanLayersAndExtensions::GetDeviceLayers() const
+{ return enableDeviceLayers; }
+
+std::vector<const char*> VulkanLayersAndExtensions::GetDeviceLayerNames() const {
+    std::vector<const char*> layerNames(enableDeviceLayers.size());
+    for(size_t i = 0; i < layerNames.size(); i++) {
+        layerNames[i] = enableDeviceLayers[i].layerName;
+    }
+    return layerNames;
+}
+
+const std::vector<VkExtensionProperties>&
+    VulkanLayersAndExtensions::GetDeviceExtensions() const
+{ return enableDeviceExtensions; }
+
+std::vector<const char*> VulkanLayersAndExtensions::GetDeviceExtensionNames() const {
+    std::vector<const char*> extensionNames(enableDeviceExtensions.size());
+    for(size_t i = 0; i < extensionNames.size(); i++) {
+        extensionNames[i] = enableDeviceExtensions[i].extensionName;
+    }
+    return extensionNames;
+}
+

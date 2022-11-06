@@ -1,17 +1,24 @@
 #pragma once
 
+#include "vk_extensions.hpp"
+#include "app_setting.hpp"
+#include "debug_messenger.hpp"
+
 class VulkanInstance {
 
     VkInstance instance;
+    DebugMessenger debugMessenger;
 
 public:
 
-    VkResult Create(VulkanLayersAndExtensions& attachments
-        , const char* pAppName);
+    VkResult Create(const VulkanLayersAndExtensions& attachments
+        , const AppSetting& appSetting);
 
-    VkInstance& Access() { return instance; }
+    static VkResult IncludeDefaultLayersAndExtensions(VulkanLayersAndExtensions&);
 
-    VulkanInstance();
+    VkInstance Access() const { return instance; }
+
+    VulkanInstance() {}
     ~VulkanInstance();
 
 };

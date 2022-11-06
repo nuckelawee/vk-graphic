@@ -1,11 +1,14 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include <vector>
 #include <cstring>
+#include <iostream>
+#include <cassert>
 
 #ifdef DEBUG
-#include <iostream>
 
 struct LayerProperties {
     VkLayerProperties   layer;
@@ -25,38 +28,42 @@ public:
     VkResult RequestInstanceLayers(const std::vector<const char*>& layers);
     VkResult RequestInstanceExtensions(const std::vector<const char*>& extensions);
     VkResult RequestDeviceLayers(const std::vector<const char*>& layers
-        , VkPhysicalDevice device);
+        , const VkPhysicalDevice& gpu);
     VkResult RequestDeviceExtensions(const std::vector<const char*>& extensions
-        , VkPhysicalDevice device);
+        , const VkPhysicalDevice& gpu);
 
     int32_t LayerExist(const char* layer
-        , const VkLayerProperties *pAvailableLayers, uint32_t layerCount);
+        , const VkLayerProperties *pAvailableLayers, uint32_t layerCount) const;
     int32_t ExtensionExist(const char* extension
         , const VkExtensionProperties *pAvailableExtensions
-        , uint32_t extensionCount);
+        , uint32_t extensionCount) const;
 
-    const std::vector<VkLayerProperties>& GetInstanceLayers()
-    { return enableInstanceLayers; }
-    const std::vector<VkExtensionProperties> GetInstsanceExtensions()
-    { return enableInstanceExtensions; }
-    const std::vector<VkLayerProperties> GetDeviceLayers()
-    { return enableDeviceLayers; }
-    const std::vector<VkExtensionProperties> GetDeviceExtensions()
-    { return enableDeviceExtensions; }
+    const std::vector<VkLayerProperties>& GetInstanceLayers() const;
+    std::vector<const char*> GetInstanceLayerNames() const;
+
+    const std::vector<VkExtensionProperties>& GetInstanceExtensions() const;
+    std::vector<const char*> GetInstanceExtensionNames() const;
+
+    const std::vector<VkLayerProperties>& GetDeviceLayers() const;
+    std::vector<const char*> GetDeviceLayerNames() const;
+
+    const std::vector<VkExtensionProperties>& GetDeviceExtensions() const;
+    std::vector<const char*> GetDeviceExtensionNames() const;
 
 #ifdef DEBUG
-    static void PrintAvailableLayersAndExtensions(VkPhysicalDevice device);
+    static void PrintAvailableLayersAndExtensions(const VkPhysicalDevice& gpu);
 
 private:
     static VkResult GetInstanceLayerProperties();
     static void GetInstanceExtensionProperties(
         std::vector<LayerProperties>& layerProperties);
 
-    static VkResult GetDeviceLayerProperties(VkPhysicalDevice device);
+    static VkResult GetDeviceLayerProperties(const VkPhysicalDevice& gpu);
     static void GetDeviceExtensionProperties(
-        std::vector<LayerProperties>& layerProperties, VkPhysicalDevice device);
+          std::vector<LayerProperties>& layerProperties
+        , const VkPhysicalDevice& gpu);
 
-    static VkResult GetDeviceExtensionProperties(VkPhysicalDevice *pGpu);
+    static VkResult GetDeviceExtensionProperties(const VkPhysicalDevice& gpu);
     static void PrintLayerDescriptions(const std::vector<LayerProperties>&);
 #endif
 };
