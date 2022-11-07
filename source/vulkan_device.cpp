@@ -1,5 +1,62 @@
 #include "vulkan_device.hpp"
 
+unsigned int queueFamilyGraphicPriority(VkQueueFlags provided
+    , const VkPhysicalDevice& gpu, const VkSurfaceKHR& surface
+    , uint32_t index) {
+
+    if(provided & VK_QUEUE_GRAPHICS_BIT) {
+        VkBool32 isPresentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(gpu, index
+            , surface, &isPresentSupport);
+        if((!isPresentSupport && !(provided & VK_QUEUE_TRANSFER_BIT))) { 
+            return 3;
+        }
+        if((!isPresentSupport || !(provided & VK_QUEUE_TRANSFER_BIT))) { 
+            return 2;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+unsigned int queueFamilyTransferPriority(VkQueueFlags provided
+    , const VkPhysicalDevice& gpu,  const VkSurfaceKHR& surface
+    , uint32_t index) {
+    
+    if(provided & VK_QUEUE_TRANSFER_BIT) {
+        VkBool32 isPresentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(gpu, index
+            , surface, &isPresentSupport);
+        if((!isPresentSupport && !(provided & VK_QUEUE_GRAPHICS_BIT))) {
+            return 3;
+        }
+        if((!isPresentSupport || !(provided & VK_QUEUE_GRAPHICS_BIT))) {
+            return 2;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+unsigned int queueFamilyPresentPriority(VkQueueFlags provided
+    , const VkPhysicalDevice& gpu, const VkSurfaceKHR& surface
+    , uint32_t index) {
+
+    VkBool32 isPresentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(gpu, index
+        , surface, &isPresentSupport);
+    if(isPresentSupport) {
+        if(!(provided & VK_QUEUE_TRANSFER_BIT) && !(provided & VK_QUEUE_GRAPHICS_BIT)) {
+            return 3;
+        }
+        if(!(provided & VK_QUEUE_TRANSFER_BIT) || !(provided & VK_QUEUE_GRAPHICS_BIT)) {
+            return 2;
+        }
+        return 1;
+    }
+    return 0;
+}
+
 #ifdef DEBUG
 std::string VulkanDevice::GetGpuType(VkPhysicalDeviceType gpuType) {
     switch(gpuType) {
@@ -37,7 +94,7 @@ void VulkanDevice::PrintGpuProperties(const VkPhysicalDevice& gpu) {
 
 #endif
 
-VkResult VulkanDevice::FindQueueFamilyIndices(QueueFamilyIndices& indices
+VkResult VulkanDevice::FindQueueFamilies(QueueFamilies& queueFamilies
     , const VkPhysicalDevice& gpu, const VkSurfaceKHR& surface) {
 
     uint32_t queueFamilyCount = 0;
@@ -45,52 +102,68 @@ VkResult VulkanDevice::FindQueueFamilyIndices(QueueFamilyIndices& indices
     VkQueueFamilyProperties queueProperties[queueFamilyCount];
     vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queueFamilyCount, queueProperties);
 
+    unsigned int graphicPriority = 0;
+    unsigned int transferPriority = 0;
+    unsigned int presentPriority = 0;
     for(size_t i = 0; i < queueFamilyCount; i++) {
         const VkQueueFamilyProperties& queueProperty = queueProperties[i];
-        if( (queueProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
-            && !(queueProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-            indices.transfer = i;
-            continue;
+        if(graphicPriority < queueFamilyGraphicPriority(queueProperty.queueFlags
+            , gpu, surface, i)) {
+
+            graphicPriority = queueFamilyGraphicPriority(queueProperty.queueFlags
+                , gpu, surface, i);
+            queueFamilies.graphic.index = i;
+            queueFamilies.graphic.queueProperties = queueProperty;
         }
-        if(queueProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphic = i;
+        if(transferPriority < queueFamilyTransferPriority(queueProperty.queueFlags
+            , gpu, surface, i)) {
+
+            transferPriority = queueFamilyTransferPriority(queueProperty.queueFlags
+                , gpu, surface, i);
+            queueFamilies.transfer.index = i;
+            queueFamilies.transfer.queueProperties = queueProperty;
         }
-        VkBool32 isPresentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &isPresentSupport);
-        if(isPresentSupport == true) {
-            indices.present = i;
+        if(presentPriority < queueFamilyPresentPriority(queueProperty.queueFlags
+            , gpu, surface, i)) {
+
+            presentPriority = queueFamilyPresentPriority(queueProperty.queueFlags
+                , gpu, surface, i);
+            queueFamilies.present.index = i;
+            queueFamilies.present.queueProperties = queueProperty;
         }
     }
 
-    if(indices.present.has_value() && indices.graphic.has_value()) {
-        if(indices.transfer.has_value())
-        { return VK_SUCCESS; }
+    if(graphicPriority == 2 && presentPriority == 2 && transferPriority == 2) {
+        return VK_SUCCESS;
+    } 
+    if(graphicPriority == 0 || presentPriority == 0 || transferPriority == 0) {
 #ifdef DEBUG
-        std::cerr << "\nWARNING [ " << GetGpuName(gpu)
-            << " ]\n---> Transfer department family indices not available\n\n";
-#endif
-        return VK_INCOMPLETE;
+        std::cerr << "\nWARNING [ " << GetGpuName(gpu) 
+            << " ]\n---> Not all queue families supported\n\n";
+#endif   
+        return VK_ERROR_FEATURE_NOT_PRESENT;
     }
 #ifdef DEBUG
-    std::cerr << "\nWARNING [ " << GetGpuName(gpu) 
-        << " ]\n---> Family indices not supported\n\n";
+    std::cerr << "\nWARNING [ " << GetGpuName(gpu)
+        << " ]\n---> Queue capabilities combined \n\n";
 #endif
-    return VK_ERROR_FEATURE_NOT_PRESENT;
+    return VK_INCOMPLETE;
 }
 
-bool VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
+unsigned int VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     , const VkSurfaceKHR& surface, VulkanLayersAndExtensions& attachments) {
 
+    unsigned int priority = 2; // Max
 #ifdef DEBUG
     PrintGpuProperties(gpu);
 #endif
-    QueueFamilyIndices indices;
-    if(FindQueueFamilyIndices(indices, gpu, surface) != VK_SUCCESS) {
-#ifdef DEBUG
-        std::cerr << "\nWARNING [ " << GetGpuName(gpu)
-            << " ]\n---> Not all GPU family indices supported\n\n";
-#endif
-        return false;
+    QueueFamilies queueFamilies;
+    VkResult result = FindQueueFamilies(queueFamilies, gpu, surface);
+    if(result == VK_ERROR_FEATURE_NOT_PRESENT) {
+        return 0;
+    }
+    if(result == VK_INCOMPLETE) {
+        priority--;
     }
 
     const std::vector<const char*> extensions =
@@ -100,14 +173,16 @@ bool VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
         std::cerr << "\nWARNING [ " << GetGpuName(gpu)
             << " ]\n---> GPU extensions doesn't supported\n\n";
 #endif
-        return false;
+        return 0;
     }
-    return true; 
+    return priority; 
 }
 
 VkResult VulkanDevice::PickGpu(const VkInstance& instance
-    , const VkSurfaceKHR& surface, VulkanLayersAndExtensions& attachments) {
-//    , std::function<bool>(VkPhysicalDevice) isGpuSuitable = VulkanDevice::DefaultGpu() {
+    , const VkSurfaceKHR& surface, VulkanLayersAndExtensions& attachments
+    , std::function<unsigned int(const VkPhysicalDevice&, const VkSurfaceKHR&
+    , VulkanLayersAndExtensions&)> IsGpuSuitable) {
+
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 #ifdef DEBUG
@@ -118,10 +193,12 @@ VkResult VulkanDevice::PickGpu(const VkInstance& instance
 #endif
     VkPhysicalDevice pGpus[deviceCount];
     vkEnumeratePhysicalDevices(instance, &deviceCount, pGpus);
+    unsigned int suitable = 0;
     for(size_t i = 0; i < deviceCount; i++) {
-        if(ChooseDefaultGpu(pGpus[i], surface, attachments)) {
+        unsigned int priority = IsGpuSuitable(pGpus[i], surface, attachments);
+        if(priority > suitable) {
+            suitable = priority;        
             gpu = pGpus[i];
-            break;
         }
     }
     if(gpu == VK_NULL_HANDLE) {
@@ -132,13 +209,102 @@ VkResult VulkanDevice::PickGpu(const VkInstance& instance
 #endif
         return VK_ERROR_INITIALIZATION_FAILED;
     }
+    FindQueueFamilies(queues, gpu, surface);
     return VK_SUCCESS;
 }
-    
-void VulkanDevice::CreateLogicalDevice(const VkInstance& instance) {
-    
+
+std::vector<VkDeviceQueueCreateInfo> VulkanDevice::PopulateQueueInfos(
+    const VkSurfaceKHR& surface, const float queuePriorities) const {
+
+    QueueFamilies queueFamilies;
+    FindQueueFamilies(queueFamilies, gpu, surface);
+    std::set<QueueFamily> uniqueQueueFamilies = {
+        queueFamilies.graphic,
+        queueFamilies.present,
+        queueFamilies.transfer,
+    };
+
+    std::vector<VkDeviceQueueCreateInfo> queueInfos;
+    VkDeviceQueueCreateInfo queueInfo {};
+    for(auto& queueFamily : uniqueQueueFamilies) {
+        queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueInfo.queueFamilyIndex = queueFamily.index.value();
+        queueInfo.queueCount = queueFamily.queueProperties.queueCount;
+        queueInfo.pQueuePriorities = &queuePriorities;
+        queueInfos.push_back(queueInfo);
+    }
+    return queueInfos;
 }
 
-VulkanDevice::~VulkanDevice() {
+#ifdef DEBUG
+void ProccessInstanceErrorCreation(VkResult result) {
+    switch(result) {
+    case VK_ERROR_OUT_OF_HOST_MEMORY:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error out of host memory\n\n";
+    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error out of device memory\n\n";
+    case VK_ERROR_INITIALIZATION_FAILED:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error initialization\n\n";
+    case VK_ERROR_EXTENSION_NOT_PRESENT:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error extension not present\n\n";
+    case VK_ERROR_FEATURE_NOT_PRESENT:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error feature not present\n\n";
+    case VK_ERROR_TOO_MANY_OBJECTS:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error too many objects\n\n";
+    case VK_ERROR_DEVICE_LOST:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Error device lost\n\n";
+    default:
+        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
+            "Unknown error\n\n";
+    }
+}
+#endif
+    
+VkResult VulkanDevice::CreateLogicalDevice(const VkInstance& instance
+    , const VkSurfaceKHR& surface, const VulkanLayersAndExtensions& attachments) {
 
+    const float queuePriorities = 1.0f;
+    std::vector<VkDeviceQueueCreateInfo> queueInfos = PopulateQueueInfos(surface
+        , queuePriorities);
+
+    VkPhysicalDeviceFeatures deviceFeatures {};
+    std::vector<const char*> deviceExtensions = attachments.GetDeviceExtensionNames();
+
+    VkDeviceCreateInfo deviceInfo {};
+    deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceInfo.queueCreateInfoCount = queueInfos.size();
+    deviceInfo.pQueueCreateInfos = queueInfos.data();
+    deviceInfo.enabledExtensionCount = deviceExtensions.size();
+    deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    deviceInfo.pEnabledFeatures = &deviceFeatures;
+
+    VkResult result = vkCreateDevice(gpu, &deviceInfo, nullptr, &device);
+#ifdef DEBUG
+    if(result != VK_SUCCESS) {
+        ProccessInstanceErrorCreation(result);
+        std::cerr << "\nERROR [ Device creation ]\n---> "\
+            "Failed to create device\n";
+    }
+#endif
+    assert(result == VK_SUCCESS);
+    return result;
+}
+
+void VulkanDevice::SetQueueFamilies(const VkSurfaceKHR& surface
+    , std::function<VkResult(QueueFamilies& queueFamilies
+    , const VkPhysicalDevice& gpu
+    , const VkSurfaceKHR& surface)> find) {
+    
+    find(queues, gpu, surface); 
+}
+
+void VulkanDevice::DestroyDevice() {
+    vkDestroyDevice(device, nullptr);
 }

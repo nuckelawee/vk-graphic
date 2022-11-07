@@ -26,8 +26,8 @@ VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
     std::vector<const char*> layerNames = attachments.GetInstanceLayerNames();
     instanceInfo.enabledLayerCount = attachments.GetInstanceLayers().size();
     instanceInfo.ppEnabledLayerNames = layerNames.data();
-    VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo {};
-    DebugMessenger::PopulateDebugMessengerCreateInfo(debugMessengerInfo);
+    VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = 
+        DebugMessenger::PopulateDebugMessengerInfo();
     instanceInfo.pNext = &debugMessengerInfo;
 #endif
     result = vkCreateInstance(&instanceInfo, nullptr, &instance);

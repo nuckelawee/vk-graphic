@@ -7,11 +7,12 @@
 class DebugMessenger {
 
     VkDebugUtilsMessengerEXT debugMessenger;
+
 public:
 
     void Setup(const VkInstance& instance);
 
-    static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT&);
+    static VkDebugUtilsMessengerCreateInfoEXT PopulateDebugMessengerInfo();
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
           VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity

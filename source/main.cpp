@@ -18,6 +18,9 @@ int main() {
 
     VulkanDevice device;
     device.PickGpu(instance.Access(), window.AccessSurface(), attachments);
+    device.CreateLogicalDevice(instance.Access(), window.AccessSurface()
+        , attachments);
+    device.SetQueueFamilies(window.AccessSurface());
 
     VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(device.AccessGpu());
 
@@ -25,6 +28,7 @@ int main() {
 
     }
 
+    device.DestroyDevice();
     window.DestroySurface(instance.Access());
 
     return 0;

@@ -6,17 +6,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger::DebugCallback(
         , const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData
         , void* pUserData) {
     
+/*
     if(messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
         && messageType >= VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-
+*/
         std::cerr << "VALIDATION LAYER:\n" << pCallbackData->pMessage << '\n';
-    }
+//    }
     return VK_FALSE;
 }
 
-void DebugMessenger::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT&
-    debugMessengerInfo) {
-
+VkDebugUtilsMessengerCreateInfoEXT DebugMessenger::PopulateDebugMessengerInfo() {
+    VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo {};
     debugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
         | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -25,11 +25,12 @@ void DebugMessenger::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreat
         | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     debugMessengerInfo.pfnUserCallback = DebugCallback;
     debugMessengerInfo.pUserData = nullptr;
+    return debugMessengerInfo;
 }
 
 void DebugMessenger::Setup(const VkInstance& instance) {
-    VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo {};
-    PopulateDebugMessengerCreateInfo(debugMessengerInfo);
+    VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = 
+        PopulateDebugMessengerInfo();
     if(Create(instance, &debugMessengerInfo, nullptr) != VK_SUCCESS) {
         
         std::cerr << "\nWARNING [ Setup debug messenger ]\n---> "\

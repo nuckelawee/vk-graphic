@@ -20,15 +20,18 @@ class VulkanLayersAndExtensions {
 
     std::vector<VkLayerProperties> enableInstanceLayers;
     std::vector<VkExtensionProperties> enableInstanceExtensions;
-    std::vector<VkLayerProperties> enableDeviceLayers;
+    // deprecated
+    //std::vector<VkLayerProperties> enableDeviceLayers; 
     std::vector<VkExtensionProperties> enableDeviceExtensions;
 
 public:
 
     VkResult RequestInstanceLayers(const std::vector<const char*>& layers);
     VkResult RequestInstanceExtensions(const std::vector<const char*>& extensions);
+/*
     VkResult RequestDeviceLayers(const std::vector<const char*>& layers
         , const VkPhysicalDevice& gpu);
+*/
     VkResult RequestDeviceExtensions(const std::vector<const char*>& extensions
         , const VkPhysicalDevice& gpu);
 

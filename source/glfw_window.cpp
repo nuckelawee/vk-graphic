@@ -21,6 +21,7 @@ void Window::CreateWindow(const AppSetting& appSetting) {
     }
 }
 
+#ifdef DEBUG
 void processSurfaceErrorCreation(VkResult errorType) {
     switch(errorType) {
     case VK_ERROR_INITIALIZATION_FAILED:
@@ -45,6 +46,7 @@ void processSurfaceErrorCreation(VkResult errorType) {
             "Unkown error\n\n";
     }
 }
+#endif
 
 VkResult Window::CreateSurface(const VkInstance& instance) {
     VkResult result = glfwCreateWindowSurface(instance, pWindow, nullptr, &surface);

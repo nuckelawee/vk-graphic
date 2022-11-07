@@ -183,6 +183,7 @@ VkResult VulkanLayersAndExtensions::RequestInstanceExtensions(
     return VK_SUCCESS;
 }
 
+/*
 VkResult VulkanLayersAndExtensions::RequestDeviceLayers(
       const std::vector<const char*>& layers, const VkPhysicalDevice& gpu) {
 
@@ -212,6 +213,7 @@ VkResult VulkanLayersAndExtensions::RequestDeviceLayers(
     }
     return VK_SUCCESS;
 }
+*/
 
 VkResult VulkanLayersAndExtensions::RequestDeviceExtensions(
       const std::vector<const char*>& extensions, const VkPhysicalDevice& gpu) {
@@ -269,6 +271,7 @@ std::vector<const char*> VulkanLayersAndExtensions::GetInstanceExtensionNames() 
     return extensionNames;
 }
    
+/*
 const std::vector<VkLayerProperties>& 
     VulkanLayersAndExtensions::GetDeviceLayers() const
 { return enableDeviceLayers; }
@@ -280,6 +283,7 @@ std::vector<const char*> VulkanLayersAndExtensions::GetDeviceLayerNames() const 
     }
     return layerNames;
 }
+*/
 
 const std::vector<VkExtensionProperties>&
     VulkanLayersAndExtensions::GetDeviceExtensions() const
