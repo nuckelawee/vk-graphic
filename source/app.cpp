@@ -1,9 +1,31 @@
 #include "app.hpp"
 
+bool App::CheckState() {
+    if(globalSetting_.State() == APP_TERMINATE) {
+        window_.CloseWindow();
+        return false;
+    }
+    if(globalSetting_.State() == APP_STOP) {
+        return true;
+    }
+    return false;
+}
+
+void App::Update() {
+    bool notWork = true;
+    while(notWork) {
+        notWork = CheckState();
+    }
+    statistic_.Update();
+}
+
 void App::Run() {
+    threadPool_.Submit(Task([&]() {
+        Console::Input(globalSetting_);
+    }));
     Init();
     while(!window_.ShouldClosed()) {
-
+        Update(); 
     }
 }
 
@@ -24,6 +46,8 @@ void App::Init() {
     VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
 #endif
 }
+
+App::App() : threadPool_(std::thread::hardware_concurrency()-1) {}
 
 App::~App() {
     device_.DestroyDevice();

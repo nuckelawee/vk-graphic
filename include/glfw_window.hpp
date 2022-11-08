@@ -19,7 +19,8 @@ public:
     VkSurfaceKHR AccessSurface() const { return surface_; }
 
     void DestroySurface(const VkInstance& instance);
-    bool ShouldClosed();
+    void CloseWindow();
+    bool ShouldClosed() const;
 
     Window() {}
     ~Window();

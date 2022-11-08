@@ -65,7 +65,11 @@ void Window::DestroySurface(const VkInstance& instance) {
     vkDestroySurfaceKHR(instance, surface_, nullptr);
 }
 
-bool Window::ShouldClosed() {
+void Window::CloseWindow() {
+    glfwSetWindowShouldClose(pWindow_, GLFW_TRUE);
+}
+
+bool Window::ShouldClosed() const {
     return glfwWindowShouldClose(pWindow_);
 }
 

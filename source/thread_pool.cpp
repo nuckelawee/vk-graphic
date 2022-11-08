@@ -5,7 +5,7 @@ ThreadPool::ThreadPool(size_t threadCount) {
 }
 
 void ThreadPool::StartWorkerThreads(size_t threadCount) {
-    complete = true;
+    complete_ = true;
     for(size_t i = 0; i < threadCount; i++) {
         workers_.emplace_back([this]() {
             WorkerRoutine(); 
@@ -14,9 +14,9 @@ void ThreadPool::StartWorkerThreads(size_t threadCount) {
 }
 
 void ThreadPool::WorkerRoutine() {
-    while(complete) {
+    while(complete_) {
         Task task;
-        tasks_.WaitAndPop(task, complete);
+        tasks_.WaitAndPop(task, complete_);
         if(task.Exist()) {
             task();
         }
@@ -32,7 +32,7 @@ void ThreadPool::Wait() {
 }
 
 void ThreadPool::Stop() {
-    complete = false;
+    complete_ = false;
     tasks_.NotifyAll();
     for(size_t i = 0; i < workers_.size(); i++) {
         workers_[i].join();
