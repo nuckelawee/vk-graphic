@@ -6,8 +6,8 @@
 
 class VulkanInstance {
 
-    VkInstance instance;
-    DebugMessenger debugMessenger;
+    VkInstance instance_;
+    DebugMessenger debugMessenger_;
 
 public:
 
@@ -16,7 +16,7 @@ public:
 
     static VkResult IncludeDefaultLayersAndExtensions(VulkanLayersAndExtensions&);
 
-    VkInstance Access() const { return instance; }
+    VkInstance Access() const { return instance_; }
 
     VulkanInstance() {}
     ~VulkanInstance();

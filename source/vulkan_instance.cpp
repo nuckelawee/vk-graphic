@@ -30,7 +30,7 @@ VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
         DebugMessenger::PopulateDebugMessengerInfo();
     instanceInfo.pNext = &debugMessengerInfo;
 #endif
-    result = vkCreateInstance(&instanceInfo, nullptr, &instance);
+    result = vkCreateInstance(&instanceInfo, nullptr, &instance_);
 
 #ifdef DEBUG
     if(result != VK_SUCCESS) {
@@ -38,7 +38,7 @@ VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
             "Failed to create instance\n\n";
     }
     assert(result == VK_SUCCESS);
-    debugMessenger.Setup(instance);
+    debugMessenger_.Setup(instance_);
 #endif
 
     return result;
@@ -81,6 +81,6 @@ VkResult VulkanInstance::IncludeDefaultLayersAndExtensions(
 }
 
 VulkanInstance::~VulkanInstance() {
-    debugMessenger.Destroy(instance, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    debugMessenger_.Destroy(instance_, nullptr);
+    vkDestroyInstance(instance_, nullptr);
 }

@@ -6,7 +6,7 @@
 
 class DebugMessenger {
 
-    VkDebugUtilsMessengerEXT debugMessenger;
+    VkDebugUtilsMessengerEXT debugMessenger_;
 
 public:
 

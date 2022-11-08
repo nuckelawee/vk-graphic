@@ -153,17 +153,19 @@ VkResult VulkanDevice::FindQueueFamilies(QueueFamilies& queueFamilies
 unsigned int VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     , const VkSurfaceKHR& surface, VulkanLayersAndExtensions& attachments) {
 
-    unsigned int priority = 2; // Max
+    unsigned int priority = 0;
 #ifdef DEBUG
     PrintGpuProperties(gpu);
 #endif
     QueueFamilies queueFamilies;
     VkResult result = FindQueueFamilies(queueFamilies, gpu, surface);
     if(result == VK_ERROR_FEATURE_NOT_PRESENT) {
-        return 0;
+        return priority;
     }
     if(result == VK_INCOMPLETE) {
-        priority--;
+        priority++;
+    } else {
+        priority += 2;
     }
 
     const std::vector<const char*> extensions =
@@ -174,6 +176,13 @@ unsigned int VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
             << " ]\n---> GPU extensions doesn't supported\n\n";
 #endif
         return 0;
+    }
+
+    VkPhysicalDeviceProperties gpuProperties;
+    vkGetPhysicalDeviceProperties(gpu, &gpuProperties);
+ 
+    if(gpuProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+        priority += 2;
     }
     return priority; 
 }
@@ -198,10 +207,10 @@ VkResult VulkanDevice::PickGpu(const VkInstance& instance
         unsigned int priority = IsGpuSuitable(pGpus[i], surface, attachments);
         if(priority > suitable) {
             suitable = priority;        
-            gpu = pGpus[i];
+            gpu_ = pGpus[i];
         }
     }
-    if(gpu == VK_NULL_HANDLE) {
+    if(gpu_ == VK_NULL_HANDLE) {
 #ifdef DEBUG
         std::cerr << "\nERROR [ Pick GPU ]\n---> "\
             "suitable not found GPU\n";
@@ -209,15 +218,15 @@ VkResult VulkanDevice::PickGpu(const VkInstance& instance
 #endif
         return VK_ERROR_INITIALIZATION_FAILED;
     }
-    FindQueueFamilies(queues, gpu, surface);
+    FindQueueFamilies(queues_, gpu_, surface);
     return VK_SUCCESS;
 }
 
 std::vector<VkDeviceQueueCreateInfo> VulkanDevice::PopulateQueueInfos(
-    const VkSurfaceKHR& surface, const float queuePriorities) const {
+    const VkSurfaceKHR& surface, const float& queuePriorities) const {
 
     QueueFamilies queueFamilies;
-    FindQueueFamilies(queueFamilies, gpu, surface);
+    FindQueueFamilies(queueFamilies, gpu_, surface);
     std::set<QueueFamily> uniqueQueueFamilies = {
         queueFamilies.graphic,
         queueFamilies.present,
@@ -285,7 +294,7 @@ VkResult VulkanDevice::CreateLogicalDevice(const VkInstance& instance
     deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
     deviceInfo.pEnabledFeatures = &deviceFeatures;
 
-    VkResult result = vkCreateDevice(gpu, &deviceInfo, nullptr, &device);
+    VkResult result = vkCreateDevice(gpu_, &deviceInfo, nullptr, &device_);
 #ifdef DEBUG
     if(result != VK_SUCCESS) {
         ProccessInstanceErrorCreation(result);
@@ -302,9 +311,9 @@ void VulkanDevice::SetQueueFamilies(const VkSurfaceKHR& surface
     , const VkPhysicalDevice& gpu
     , const VkSurfaceKHR& surface)> find) {
     
-    find(queues, gpu, surface); 
+    find(queues_, gpu_, surface); 
 }
 
 void VulkanDevice::DestroyDevice() {
-    vkDestroyDevice(device, nullptr);
+    vkDestroyDevice(device_, nullptr);
 }

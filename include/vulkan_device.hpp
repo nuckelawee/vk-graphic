@@ -27,9 +27,9 @@ struct QueueFamilies {
 };
 
 class VulkanDevice {
-    VkPhysicalDevice gpu = VK_NULL_HANDLE;
-    VkDevice device;
-    QueueFamilies queues;
+    VkPhysicalDevice gpu_ = VK_NULL_HANDLE;
+    VkDevice device_;
+    QueueFamilies queues_;
 
 public:
 
@@ -58,13 +58,13 @@ private:
 
 #endif
     std::vector<VkDeviceQueueCreateInfo> PopulateQueueInfos(
-        const VkSurfaceKHR& surface, const float queuePriorities) const;
+        const VkSurfaceKHR& surface, const float& queuePriorities) const;
 
 public:
 
-    VkPhysicalDevice AccessGpu() { return gpu; }
-    VkDevice Access() { return device; }
-    QueueFamilies AccessQueues() { return queues; }
+    VkPhysicalDevice AccessGpu() { return gpu_; }
+    VkDevice Access() { return device_; }
+    QueueFamilies AccessQueues() { return queues_; }
 
     void SetQueueFamilies(const VkSurfaceKHR& surface
         , std::function<VkResult(QueueFamilies& queueFamilies

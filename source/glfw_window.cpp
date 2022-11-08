@@ -10,10 +10,10 @@ void Window::CreateWindow(const AppSetting& appSetting) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     
-    pWindow = glfwCreateWindow(appSetting.Width(), appSetting.Height()
+    pWindow_ = glfwCreateWindow(appSetting.Width(), appSetting.Height()
         , appSetting.AppName().c_str(), nullptr, nullptr);
 
-    if(pWindow == nullptr) {
+    if(pWindow_ == nullptr) {
 #ifdef DEBUG
         std::cerr << "ERROR [ GLFW ]\n---> GLFW window creation failed\n\n";
 #endif
@@ -49,7 +49,7 @@ void processSurfaceErrorCreation(VkResult errorType) {
 #endif
 
 VkResult Window::CreateSurface(const VkInstance& instance) {
-    VkResult result = glfwCreateWindowSurface(instance, pWindow, nullptr, &surface);
+    VkResult result = glfwCreateWindowSurface(instance, pWindow_, nullptr, &surface_);
 #ifdef DEBUG
     if(result != VK_SUCCESS) {
         processSurfaceErrorCreation(result); 
@@ -62,14 +62,14 @@ VkResult Window::CreateSurface(const VkInstance& instance) {
 }
 
 void Window::DestroySurface(const VkInstance& instance) {
-    vkDestroySurfaceKHR(instance, surface, nullptr);
+    vkDestroySurfaceKHR(instance, surface_, nullptr);
 }
 
 bool Window::ShouldClosed() {
-    return glfwWindowShouldClose(pWindow);
+    return glfwWindowShouldClose(pWindow_);
 }
 
 Window::~Window() {
-    glfwDestroyWindow(pWindow);
+    glfwDestroyWindow(pWindow_);
     glfwTerminate();
 }
