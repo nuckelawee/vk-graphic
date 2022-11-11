@@ -5,6 +5,7 @@
 #include <set>
 
 #include "vk_extensions.hpp"
+#include "glfw_window.hpp"
 
 struct QueueFamily {
     std::optional<uint32_t> index;
@@ -14,6 +15,8 @@ struct QueueFamily {
 
     bool operator ==(const QueueFamily& queueFamily) const
     { return index == queueFamily.index; }
+    bool operator !=(const QueueFamily& queueFamily) const
+    { return index != queueFamily.index; }
     bool operator <(const QueueFamily& queueFamily) const
     { return index < queueFamily.index; }
     bool operator >(const QueueFamily& queueFamily) const
@@ -62,9 +65,9 @@ private:
 
 public:
 
-    VkPhysicalDevice AccessGpu() { return gpu_; }
-    VkDevice Access() { return device_; }
-    QueueFamilies AccessQueues() { return queues_; }
+    VkPhysicalDevice AccessGpu() const { return gpu_; }
+    VkDevice Access() const { return device_; }
+    QueueFamilies AccessQueues() const { return queues_; }
 
     void SetQueueFamilies(const VkSurfaceKHR& surface
         , std::function<VkResult(QueueFamilies& queueFamilies

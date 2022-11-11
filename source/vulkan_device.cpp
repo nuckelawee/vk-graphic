@@ -178,6 +178,17 @@ unsigned int VulkanDevice::ChooseDefaultGpu(const VkPhysicalDevice& gpu
         return 0;
     }
 
+    SurfaceDetails surfaceCapabilities = Window::SurfaceCapabilities(gpu
+        , surface);
+    if(!(surfaceCapabilities.formats.size() > 0)
+        || !(surfaceCapabilities.presentModes.size() > 0)) {
+#ifdef DEBUG
+        std::cerr << "\nWARNING [ " << GetGpuName(gpu)
+            << " ]\n---> GPU surface doesn't supported\n\n"; 
+#endif
+        return 0; 
+    }
+
     VkPhysicalDeviceProperties gpuProperties;
     vkGetPhysicalDeviceProperties(gpu, &gpuProperties);
  

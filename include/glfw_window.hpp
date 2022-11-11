@@ -4,8 +4,15 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 #include "app_setting.hpp"
+
+struct SurfaceDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+};
 
 class Window {
 
@@ -15,6 +22,10 @@ class Window {
 public:
     void CreateWindow(const AppSetting& appSetting);
     VkResult CreateSurface(const VkInstance& instance);
+
+    static SurfaceDetails SurfaceCapabilities(const VkPhysicalDevice& gpu
+        , const VkSurfaceKHR& surface);
+
 
     VkSurfaceKHR AccessSurface() const { return surface_; }
 

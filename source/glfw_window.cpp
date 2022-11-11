@@ -61,6 +61,32 @@ VkResult Window::CreateSurface(const VkInstance& instance) {
     return result;
 }
 
+SurfaceDetails Window::SurfaceCapabilities(const VkPhysicalDevice& gpu
+    , const VkSurfaceKHR& surface) {
+    SurfaceDetails details;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface
+        , &details.capabilities);
+
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, nullptr);
+    if(formatCount > 0) { 
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount
+            , details.formats.data());
+    }
+
+    uint32_t presentCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
+        , nullptr);
+    if(presentCount > 0) {
+        details.presentModes.resize(presentCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
+            , details.presentModes.data());
+    } 
+    return details;
+}
+
 void Window::DestroySurface(const VkInstance& instance) {
     vkDestroySurfaceKHR(instance, surface_, nullptr);
 }
