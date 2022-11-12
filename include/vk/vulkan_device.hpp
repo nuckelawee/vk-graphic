@@ -7,6 +7,8 @@
 #include "vk_extensions.hpp"
 #include "glfw_window.hpp"
 
+namespace vk {
+
 struct QueueFamily {
     std::optional<uint32_t> index;
     VkQueueFamilyProperties queueProperties;
@@ -74,8 +76,10 @@ public:
         , const VkPhysicalDevice& gpu
         , const VkSurfaceKHR& surface)> find = FindQueueFamilies);
 
-    void DestroyDevice();
+    void Destroy();
     VulkanDevice() {}
     ~VulkanDevice() {}
 
 };
+
+} //vk

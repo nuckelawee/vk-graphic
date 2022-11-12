@@ -1,4 +1,6 @@
-#include "vk_extensions.hpp"
+#include "vk/vk_extensions.hpp"
+
+namespace vk {
 
 #ifdef DEBUG
 
@@ -297,3 +299,4 @@ std::vector<const char*> VulkanLayersAndExtensions::GetDeviceExtensionNames() co
     return extensionNames;
 }
 
+} //vk

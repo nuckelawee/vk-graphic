@@ -1,4 +1,6 @@
-#include "debug_messenger.hpp"
+#include "vk/debug_messenger.hpp"
+
+namespace vk {
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger::DebugCallback(
           VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity
@@ -60,3 +62,5 @@ void DebugMessenger::Destroy(const VkInstance& instance
         return func(instance, debugMessenger_, pAllocator);
     }
 }
+
+} //vk

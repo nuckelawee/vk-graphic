@@ -4,6 +4,8 @@
 #include "app_setting.hpp"
 #include "debug_messenger.hpp"
 
+namespace vk {
+
 class VulkanInstance {
 
     VkInstance instance_;
@@ -22,3 +24,5 @@ public:
     ~VulkanInstance();
 
 };
+
+} //vk

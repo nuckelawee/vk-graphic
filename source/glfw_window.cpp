@@ -19,6 +19,7 @@ void Window::CreateWindow(const AppSetting& appSetting) {
 #endif
         exit(EXIT_FAILURE);
     }
+    glfwSetKeyCallback(pWindow_, KeyCallback);
 }
 
 #ifdef DEBUG
@@ -75,6 +76,7 @@ SurfaceDetails Window::SurfaceCapabilities(const VkPhysicalDevice& gpu
         vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount
             , details.formats.data());
     }
+    std::cout << "Formats: " << formatCount << '\n';
 
     uint32_t presentCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
@@ -84,7 +86,17 @@ SurfaceDetails Window::SurfaceCapabilities(const VkPhysicalDevice& gpu
         vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
             , details.presentModes.data());
     } 
+    std::cout << "Presents: " << presentCount << '\n';
+
     return details;
+}
+
+void Window::KeyCallback(GLFWwindow *pWindow, int key, int scancode
+    , int action, int modes) {
+    
+    if(key == GLFW_KEY_ESCAPE) {
+        glfwSetWindowShouldClose(pWindow, GLFW_TRUE);
+    }
 }
 
 void Window::DestroySurface(const VkInstance& instance) {

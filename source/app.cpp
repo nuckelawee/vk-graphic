@@ -16,40 +16,31 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
+    engine_.Update(globalSetting_, window_);
     statistic_.Update();
 }
 
 void App::Run() {
+/*
     threadPool_.Submit(Task([&]() {
         Console::Input(globalSetting_);
     }));
+*/
     Init();
     while(!window_.ShouldClosed()) {
         Update(); 
+        glfwPollEvents();
     }
+    globalSetting_.ChangeState(APP_TERMINATE);
 }
 
 void App::Init() {
     window_.CreateWindow(globalSetting_);
-
-    instance_.IncludeDefaultLayersAndExtensions(attachments_);
-    instance_.Create(attachments_, globalSetting_);
-
-    window_.CreateSurface(instance_.Access());
-
-    device_.PickGpu(instance_.Access(), window_.AccessSurface(), attachments_);
-    device_.CreateLogicalDevice(instance_.Access(), window_.AccessSurface()
-        , attachments_);
-    device_.SetQueueFamilies(window_.AccessSurface());
-
-#ifdef DEBUG
-    VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
-#endif
+    engine_.Init(globalSetting_, window_);
 }
 
 App::App() : threadPool_(std::thread::hardware_concurrency()-1) {}
 
 App::~App() {
-    device_.DestroyDevice();
-    window_.DestroySurface(instance_.Access());
+    engine_.Terminate(window_);
 }

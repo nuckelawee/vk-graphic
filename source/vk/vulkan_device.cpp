@@ -1,4 +1,6 @@
-#include "vulkan_device.hpp"
+#include "vk/vulkan_device.hpp"
+
+namespace vk {
 
 unsigned int queueFamilyGraphicPriority(VkQueueFlags provided
     , const VkPhysicalDevice& gpu, const VkSurfaceKHR& surface
@@ -325,6 +327,8 @@ void VulkanDevice::SetQueueFamilies(const VkSurfaceKHR& surface
     find(queues_, gpu_, surface); 
 }
 
-void VulkanDevice::DestroyDevice() {
+void VulkanDevice::Destroy() {
     vkDestroyDevice(device_, nullptr);
 }
+
+} //vk

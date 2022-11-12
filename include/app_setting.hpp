@@ -6,7 +6,7 @@
 enum AppState { APP_WORK, APP_STOP, APP_TERMINATE };
 
 class AppSetting {
-    std::atomic<AppState> state_ {APP_STOP};
+    std::atomic<AppState> state_ {APP_WORK};
 
     const std::string appName_ = "Vulkan";
     const std::string confFilepath_ = "../config/setting.conf";

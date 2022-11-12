@@ -8,7 +8,6 @@ void Statistic::Update(bool isPrint) {
     curTime_ = glfwGetTime();
     deltaTime_ = curTime_ - prevTime;    
     fpsTime += deltaTime_;
-    //std::cout << "Frame: " << frames << '\n';
     frames++;
     if(fpsTime > 1.0) {
         if(isPrint)

@@ -2,6 +2,8 @@
 
 #include <functional>
 class Task {
+
+    std::function<void()> func_;
 public:
 
     std::function<void()>& Access()
@@ -18,7 +20,5 @@ public:
     Task(const std::function<void()>& func) : func_(func) {}
     Task() : func_() {}
     ~Task() {}
-
-private:
-    std::function<void()> func_;
 };
+

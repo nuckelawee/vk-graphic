@@ -8,6 +8,8 @@
 #include <iostream>
 #include <cassert>
 
+namespace vk {
+
 #ifdef DEBUG
 
 struct LayerProperties {
@@ -70,3 +72,5 @@ private:
     static void PrintLayerDescriptions(const std::vector<LayerProperties>&);
 #endif
 };
+
+}

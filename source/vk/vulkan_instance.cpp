@@ -1,4 +1,6 @@
-#include "vulkan_instance.hpp"
+#include "vk/vulkan_instance.hpp"
+
+namespace vk {
 
 VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
     , const AppSetting& appSetting) {
@@ -84,3 +86,5 @@ VulkanInstance::~VulkanInstance() {
     debugMessenger_.Destroy(instance_, nullptr);
     vkDestroyInstance(instance_, nullptr);
 }
+
+} //vk

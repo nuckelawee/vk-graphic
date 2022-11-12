@@ -4,6 +4,8 @@
 
 #include "vk_extensions.hpp"
 
+namespace vk {
+
 class DebugMessenger {
 
     VkDebugUtilsMessengerEXT debugMessenger_;
@@ -33,4 +35,5 @@ public:
     ~DebugMessenger() {}
 };
 
+} //vk
 #endif

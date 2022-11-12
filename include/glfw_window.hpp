@@ -26,7 +26,9 @@ public:
     static SurfaceDetails SurfaceCapabilities(const VkPhysicalDevice& gpu
         , const VkSurfaceKHR& surface);
 
-
+    static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
+        , int action, int modes);
+    
     VkSurfaceKHR AccessSurface() const { return surface_; }
 
     void DestroySurface(const VkInstance& instance);

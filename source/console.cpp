@@ -3,8 +3,8 @@
 void Console::Input(AppSetting& setting) {
     while(setting.State() != APP_TERMINATE) {
         std::string userInput;
-        std::cin >> userInput;
-        setting.ChangeState(ProccessInput(setting.State(), userInput));
+    //    std::cin >> userInput;
+    //    setting.ChangeState(ProccessInput(setting.State(), userInput));
     }
 }
 

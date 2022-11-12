@@ -1,10 +1,13 @@
-#include "swapchain.hpp"
+#include "vk/swapchain.hpp"
+
+namespace vk {
 
 int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
     formats) const {
 
+    std::cout << "Swapchain formats: " << formats.size() << '\n';
     for(size_t i = 0; i < formats.size(); i++) {
-        if(formats[i].format == VK_FORMAT_R8G8B8A8_SRGB
+        if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB
             && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         { return i; }    
     }
@@ -14,6 +17,7 @@ int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
 int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
     presentModes) const {
     
+    std::cout << "Swapchain presents: " << presentModes.size() << '\n';
     for(size_t i = 0; i < presentModes.size(); i++) {
         if(presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
         { return i; }
@@ -112,4 +116,6 @@ VkResult Swapchain::Create(const VulkanDevice& device
 
 void Swapchain::Destroy(const VkDevice& device) {
     vkDestroySwapchainKHR(device, swapchain_, nullptr);
+}
+
 }

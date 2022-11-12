@@ -2,6 +2,8 @@
 
 #include "vulkan_device.hpp"
 
+namespace vk {
+
 class Swapchain {
 
    VkSwapchainKHR swapchain_;
@@ -20,7 +22,10 @@ private:
     VkExtent2D ChooseSuitableExtent(const VkSurfaceCapabilitiesKHR&
         capabilities) const;
 
+public:
     Swapchain() {}
     ~Swapchain() {}
 
 };
+
+} //vk
