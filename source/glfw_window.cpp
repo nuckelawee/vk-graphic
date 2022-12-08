@@ -1,6 +1,6 @@
 #include "glfw_window.hpp"
 
-void Window::CreateWindow(const AppSetting& appSetting) {
+void GlfwWindow::CreateWindow(const AppSetting& appSetting) {
     if(glfwInit() == 0) {
 #ifdef DEBUG
         std::cerr << "\nERROR [ GLFW ]\n---> GLFW library failed to init\n\n";
@@ -49,8 +49,9 @@ void processSurfaceErrorCreation(VkResult errorType) {
 }
 #endif
 
-VkResult Window::CreateSurface(const VkInstance& instance) {
-    VkResult result = glfwCreateWindowSurface(instance, pWindow_, nullptr, &surface_);
+VkResult GlfwWindow::Create(const vk::Instance& instance) {
+    VkResult result = glfwCreateWindowSurface(instance.Access(), pWindow_
+        , nullptr, &surface_);
 #ifdef DEBUG
     if(result != VK_SUCCESS) {
         processSurfaceErrorCreation(result); 
@@ -62,56 +63,48 @@ VkResult Window::CreateSurface(const VkInstance& instance) {
     return result;
 }
 
-SurfaceDetails Window::SurfaceCapabilities(const VkPhysicalDevice& gpu
-    , const VkSurfaceKHR& surface) {
-    SurfaceDetails details;
+vk::SurfaceDetails GlfwWindow::Capabilities(const VkPhysicalDevice& gpu) const {
+    vk::SurfaceDetails details;
 
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface_
         , &details.capabilities);
 
     uint32_t formatCount = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface_, &formatCount, nullptr);
     if(formatCount > 0) { 
         details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount
+        vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface_, &formatCount
             , details.formats.data());
     }
-    std::cout << "Formats: " << formatCount << '\n';
 
     uint32_t presentCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
+    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface_, &presentCount
         , nullptr);
     if(presentCount > 0) {
         details.presentModes.resize(presentCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentCount
+        vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface_, &presentCount
             , details.presentModes.data());
     } 
-    std::cout << "Presents: " << presentCount << '\n';
 
     return details;
 }
 
-void Window::KeyCallback(GLFWwindow *pWindow, int key, int scancode
+void GlfwWindow::KeyCallback(GLFWwindow *pWindow, int key, int scancode
     , int action, int modes) {
     
     if(key == GLFW_KEY_ESCAPE) {
         glfwSetWindowShouldClose(pWindow, GLFW_TRUE);
     }
 }
-
-void Window::DestroySurface(const VkInstance& instance) {
-    vkDestroySurfaceKHR(instance, surface_, nullptr);
-}
-
-void Window::CloseWindow() {
+void GlfwWindow::CloseWindow() {
     glfwSetWindowShouldClose(pWindow_, GLFW_TRUE);
 }
 
-bool Window::ShouldClosed() const {
+bool GlfwWindow::ShouldClosed() const {
     return glfwWindowShouldClose(pWindow_);
 }
 
-Window::~Window() {
+GlfwWindow::~GlfwWindow() {
     glfwDestroyWindow(pWindow_);
     glfwTerminate();
 }

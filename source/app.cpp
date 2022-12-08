@@ -16,7 +16,7 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
-    engine_.Update(globalSetting_, window_);
+    engine_.Update(globalSetting_, static_cast<vk::Surface&>(window_));
     statistic_.Update();
 }
 

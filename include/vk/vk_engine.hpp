@@ -1,28 +1,33 @@
 #pragma once
 
-#include "vulkan_instance.hpp"
-#include "vulkan_device.hpp"
-#include "glfw_window.hpp"
-#include "swapchain.hpp"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#include "vk_surface.hpp"
+#include "vk_instance.hpp"
+#include "vk_device.hpp"
+#include "vk_swapchain.hpp"
+#include "vk_graphic_pipeline.hpp"
 
 namespace vk {
 
-class VulkanEngine {
-    VulkanLayersAndExtensions attachments_;
-    VulkanInstance instance_;
-    VulkanDevice device_;
+class Engine {
+    LayersAndExtensions attachments_;
+    Instance instance_;
+    Device device_;
     Swapchain swapchain_;
+    GraphicPipeline pipeline_;
 
 public:
 
-    void Init(AppSetting& setting, Window& window); 
-    void Update(AppSetting& setting, Window& window);
-    void Terminate(Window& window);
+    void Init(AppSetting& setting, Surface& surface); 
+    void Update(AppSetting& setting, Surface& surface);
+    void Terminate(Surface& window);
 
-    VulkanEngine operator=(const VulkanEngine& engine) = delete;
-    VulkanEngine(const VulkanEngine& engine) = delete;
-    VulkanEngine() {}
-    ~VulkanEngine() {}
+    Engine operator=(const Engine& engine) = delete;
+    Engine(const Engine& engine) = delete;
+    Engine() {}
+    ~Engine() {}
 
 }; 
 

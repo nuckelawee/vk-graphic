@@ -1,11 +1,10 @@
-#include "vk/swapchain.hpp"
+#include "vk/vk_swapchain.hpp"
 
 namespace vk {
 
 int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
     formats) const {
 
-    std::cout << "Swapchain formats: " << formats.size() << '\n';
     for(size_t i = 0; i < formats.size(); i++) {
         if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB
             && formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -17,7 +16,6 @@ int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
 int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
     presentModes) const {
     
-    std::cout << "Swapchain presents: " << presentModes.size() << '\n';
     for(size_t i = 0; i < presentModes.size(); i++) {
         if(presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
         { return i; }
@@ -36,16 +34,14 @@ VkExtent2D Swapchain::ChooseSuitableExtent(const VkSurfaceCapabilitiesKHR&
     return capabilities.currentExtent;
 }
 
-VkResult Swapchain::Create(const VulkanDevice& device
-    , const VkSurfaceKHR& surface) {
+VkResult Swapchain::CreateSwapchain(const Device& device
+    , const Surface& surface) {
 
-    SurfaceDetails surfaceCapabilities = Window::SurfaceCapabilities(device.AccessGpu()
-        , surface);
+    SurfaceDetails surfaceCapabilities = surface.Capabilities(device.AccessGpu());
 
     QueueFamilies queueFamilies = device.AccessQueues();
-    VkSurfaceFormatKHR format;
+    VkSurfaceFormatKHR surfaceFormat;
     VkPresentModeKHR presentMode;
-    VkExtent2D extent;
     int32_t index;
 
     index = ChooseSuitableFormat(surfaceCapabilities.formats);
@@ -57,7 +53,7 @@ VkResult Swapchain::Create(const VulkanDevice& device
 #endif    
         return VK_ERROR_FORMAT_NOT_SUPPORTED;
     }
-    format = surfaceCapabilities.formats[index];
+    surfaceFormat = surfaceCapabilities.formats[index];
 
     index = ChooseSuitablePresent(
         surfaceCapabilities.presentModes);
@@ -70,17 +66,18 @@ VkResult Swapchain::Create(const VulkanDevice& device
     }
     presentMode = surfaceCapabilities.presentModes[index];
 
-    extent = ChooseSuitableExtent(surfaceCapabilities.capabilities);
+    extent_ = ChooseSuitableExtent(surfaceCapabilities.capabilities);
+    imageFormat_ = surfaceFormat.format;
     
     VkSwapchainCreateInfoKHR swapchainInfo {};
     swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainInfo.surface = surface;
-    swapchainInfo.imageFormat = format.format;
-    swapchainInfo.imageColorSpace = format.colorSpace;
-    swapchainInfo.imageExtent = extent;
+    swapchainInfo.surface = surface.Access();
+    swapchainInfo.imageFormat = imageFormat_;
+    swapchainInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapchainInfo.imageExtent = extent_;
     swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainInfo.imageArrayLayers = 1;
-    swapchainInfo.minImageCount = surfaceCapabilities.capabilities.maxImageCount;
+    swapchainInfo.minImageCount = surfaceCapabilities.capabilities.minImageCount;
 
     uint32_t pIndices[2] = { 
         queueFamilies.graphic.index.value(),
@@ -114,8 +111,15 @@ VkResult Swapchain::Create(const VulkanDevice& device
     return result;
 }
 
-void Swapchain::Destroy(const VkDevice& device) {
-    vkDestroySwapchainKHR(device, swapchain_, nullptr);
+VkResult Swapchain::CreateImages(const Device& device) {
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, nullptr);
+    images_.resize(imageCount);
+    return vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, images_.data());
+}
+
+void Swapchain::Destroy(const Device& device) {
+    vkDestroySwapchainKHR(device.Access(), swapchain_, nullptr);
 }
 
 }

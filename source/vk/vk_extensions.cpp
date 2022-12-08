@@ -4,14 +4,14 @@ namespace vk {
 
 #ifdef DEBUG
 
-void VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(
+void LayersAndExtensions::PrintAvailableLayersAndExtensions(
     const VkPhysicalDevice& gpu) {
 
     GetInstanceLayerProperties();
     GetDeviceLayerProperties(gpu);
 }
 
-void VulkanLayersAndExtensions::PrintLayerDescriptions(
+void LayersAndExtensions::PrintLayerDescriptions(
     const std::vector<LayerProperties>& layerProperties) {
 
     for(LayerProperties properties : layerProperties) {
@@ -24,7 +24,7 @@ void VulkanLayersAndExtensions::PrintLayerDescriptions(
     }
 }
 
-VkResult VulkanLayersAndExtensions::GetInstanceLayerProperties() {
+VkResult LayersAndExtensions::GetInstanceLayerProperties() {
 
     std::vector<LayerProperties> instanceLayerProperties;
     uint32_t layerCount;
@@ -44,7 +44,7 @@ VkResult VulkanLayersAndExtensions::GetInstanceLayerProperties() {
     return result;
 }
 
-void VulkanLayersAndExtensions::GetInstanceExtensionProperties(
+void LayersAndExtensions::GetInstanceExtensionProperties(
     std::vector<LayerProperties>& layerProperties) {
 
     for(size_t i = 0; i < layerProperties.size(); i++) {
@@ -60,7 +60,7 @@ void VulkanLayersAndExtensions::GetInstanceExtensionProperties(
     }
 }
 
-VkResult VulkanLayersAndExtensions::GetDeviceLayerProperties(
+VkResult LayersAndExtensions::GetDeviceLayerProperties(
     const VkPhysicalDevice& gpu) {
 
     std::vector<LayerProperties> gpuLayerProperties;
@@ -83,7 +83,7 @@ VkResult VulkanLayersAndExtensions::GetDeviceLayerProperties(
     return result;
 }
 
-void VulkanLayersAndExtensions::GetDeviceExtensionProperties(
+void LayersAndExtensions::GetDeviceExtensionProperties(
       std::vector<LayerProperties>& layerProperties
     , const VkPhysicalDevice& gpu) {
 
@@ -101,7 +101,7 @@ void VulkanLayersAndExtensions::GetDeviceExtensionProperties(
 }
 #endif
 
-int32_t VulkanLayersAndExtensions::LayerExist(const char* pLayer
+int32_t LayersAndExtensions::LayerExist(const char* pLayer
     , const VkLayerProperties *pAvailableLayers
     , uint32_t layerCount) const {
     
@@ -112,7 +112,7 @@ int32_t VulkanLayersAndExtensions::LayerExist(const char* pLayer
     return -1;
 }
 
-int32_t VulkanLayersAndExtensions::ExtensionExist(const char* pExtension
+int32_t LayersAndExtensions::ExtensionExist(const char* pExtension
     , const VkExtensionProperties *pAvailableExtensions
     , uint32_t extensionCount) const {
 
@@ -123,7 +123,7 @@ int32_t VulkanLayersAndExtensions::ExtensionExist(const char* pExtension
     return -1;
 }
 
-VkResult VulkanLayersAndExtensions::RequestInstanceLayers(
+VkResult LayersAndExtensions::RequestInstanceLayers(
       const std::vector<const char*>& layers) {
 
     uint32_t layerCount;
@@ -153,7 +153,7 @@ VkResult VulkanLayersAndExtensions::RequestInstanceLayers(
     return VK_SUCCESS;
 }
 
-VkResult VulkanLayersAndExtensions::RequestInstanceExtensions(
+VkResult LayersAndExtensions::RequestInstanceExtensions(
       const std::vector<const char*>& extensions) {
 
     uint32_t extensionCount;
@@ -186,7 +186,7 @@ VkResult VulkanLayersAndExtensions::RequestInstanceExtensions(
 }
 
 /*
-VkResult VulkanLayersAndExtensions::RequestDeviceLayers(
+VkResult LayersAndExtensions::RequestDeviceLayers(
       const std::vector<const char*>& layers, const VkPhysicalDevice& gpu) {
 
     uint32_t layerCount;
@@ -217,7 +217,7 @@ VkResult VulkanLayersAndExtensions::RequestDeviceLayers(
 }
 */
 
-VkResult VulkanLayersAndExtensions::RequestDeviceExtensions(
+VkResult LayersAndExtensions::RequestDeviceExtensions(
       const std::vector<const char*>& extensions, const VkPhysicalDevice& gpu) {
 
     uint32_t extensionCount;
@@ -250,10 +250,10 @@ VkResult VulkanLayersAndExtensions::RequestDeviceExtensions(
 }
 
 const std::vector<VkLayerProperties>&
-    VulkanLayersAndExtensions::GetInstanceLayers() const
+    LayersAndExtensions::GetInstanceLayers() const
 { return enableInstanceLayers; }
 
-std::vector<const char*> VulkanLayersAndExtensions::GetInstanceLayerNames() const {
+std::vector<const char*> LayersAndExtensions::GetInstanceLayerNames() const {
     std::vector<const char*> layerNames(enableInstanceLayers.size());
     for(size_t i = 0; i < layerNames.size(); i++) {
         layerNames[i] = enableInstanceLayers[i].layerName;
@@ -262,10 +262,10 @@ std::vector<const char*> VulkanLayersAndExtensions::GetInstanceLayerNames() cons
 }
     
 const std::vector<VkExtensionProperties>&
-    VulkanLayersAndExtensions::GetInstanceExtensions() const
+    LayersAndExtensions::GetInstanceExtensions() const
 { return enableInstanceExtensions; }
 
-std::vector<const char*> VulkanLayersAndExtensions::GetInstanceExtensionNames() const {
+std::vector<const char*> LayersAndExtensions::GetInstanceExtensionNames() const {
     std::vector<const char*> extensionNames(enableInstanceExtensions.size());
     for(size_t i = 0; i < extensionNames.size(); i++) {
         extensionNames[i] = enableInstanceExtensions[i].extensionName;
@@ -275,10 +275,10 @@ std::vector<const char*> VulkanLayersAndExtensions::GetInstanceExtensionNames() 
    
 /*
 const std::vector<VkLayerProperties>& 
-    VulkanLayersAndExtensions::GetDeviceLayers() const
+    LayersAndExtensions::GetDeviceLayers() const
 { return enableDeviceLayers; }
 
-std::vector<const char*> VulkanLayersAndExtensions::GetDeviceLayerNames() const {
+std::vector<const char*> LayersAndExtensions::GetDeviceLayerNames() const {
     std::vector<const char*> layerNames(enableDeviceLayers.size());
     for(size_t i = 0; i < layerNames.size(); i++) {
         layerNames[i] = enableDeviceLayers[i].layerName;
@@ -288,10 +288,10 @@ std::vector<const char*> VulkanLayersAndExtensions::GetDeviceLayerNames() const 
 */
 
 const std::vector<VkExtensionProperties>&
-    VulkanLayersAndExtensions::GetDeviceExtensions() const
+    LayersAndExtensions::GetDeviceExtensions() const
 { return enableDeviceExtensions; }
 
-std::vector<const char*> VulkanLayersAndExtensions::GetDeviceExtensionNames() const {
+std::vector<const char*> LayersAndExtensions::GetDeviceExtensionNames() const {
     std::vector<const char*> extensionNames(enableDeviceExtensions.size());
     for(size_t i = 0; i < extensionNames.size(); i++) {
         extensionNames[i] = enableDeviceExtensions[i].extensionName;

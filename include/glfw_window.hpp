@@ -1,40 +1,24 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <cassert>
-#include <vector>
-
 #include "app_setting.hpp"
 
-struct SurfaceDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
+#include "vk/vk_surface.hpp"
 
-class Window {
+class GlfwWindow : public vk::Surface {
 
     GLFWwindow *pWindow_ = nullptr;
-    VkSurfaceKHR surface_;
 
 public:
+    virtual VkResult Create(const vk::Instance& instance);
+    virtual vk::SurfaceDetails Capabilities(const VkPhysicalDevice& gpu) const;
+
     void CreateWindow(const AppSetting& appSetting);
-    VkResult CreateSurface(const VkInstance& instance);
-
-    static SurfaceDetails SurfaceCapabilities(const VkPhysicalDevice& gpu
-        , const VkSurfaceKHR& surface);
-
     static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
         , int action, int modes);
     
-    VkSurfaceKHR AccessSurface() const { return surface_; }
-
-    void DestroySurface(const VkInstance& instance);
     void CloseWindow();
     bool ShouldClosed() const;
 
-    Window() {}
-    ~Window();
+    GlfwWindow() {}
+    ~GlfwWindow();
 };

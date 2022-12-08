@@ -4,8 +4,9 @@
 #include <functional>
 #include <set>
 
+#include "vk_surface.hpp"
 #include "vk_extensions.hpp"
-#include "glfw_window.hpp"
+#include "vk_instance.hpp"
 
 namespace vk {
 
@@ -31,28 +32,29 @@ struct QueueFamilies {
     QueueFamily present;
 };
 
-class VulkanDevice {
+class Device {
     VkPhysicalDevice gpu_ = VK_NULL_HANDLE;
     VkDevice device_;
     QueueFamilies queues_;
 
 public:
 
-    VkResult CreateLogicalDevice(const VkInstance& instance
-        , const VkSurfaceKHR& surface, const VulkanLayersAndExtensions& attachments);
-    VkResult PickGpu(const VkInstance& instance, const VkSurfaceKHR& surface
-        , VulkanLayersAndExtensions& attachments
-        , std::function<unsigned int(const VkPhysicalDevice&, const VkSurfaceKHR&
-        , VulkanLayersAndExtensions&)> IsGpuSuitable =
+    VkResult CreateLogicalDevice(const Surface& surface
+        , const LayersAndExtensions& attachments);
+    VkResult PickGpu(const Instance& instance, const Surface& surface
+        , LayersAndExtensions& attachments
+        , std::function<unsigned int(const VkPhysicalDevice&, const Surface&
+        , LayersAndExtensions&)> IsGpuSuitable =
           ChooseDefaultGpu);
 
 private:
     static VkResult FindQueueFamilies(QueueFamilies& indices
-        , const VkPhysicalDevice& gpu, const VkSurfaceKHR& surface);
+        , const VkPhysicalDevice& gpu, const Surface& surface
+        , void *pUserData);
 public: 
     static unsigned int ChooseDefaultGpu(const VkPhysicalDevice& gpu
-        , const VkSurfaceKHR& surface
-        , VulkanLayersAndExtensions& attachments);
+        , const Surface& surface
+        , LayersAndExtensions& attachments);
 
 #ifdef DEBUG
     static void PrintGpuProperties(const VkPhysicalDevice& gpu);
@@ -63,7 +65,7 @@ private:
 
 #endif
     std::vector<VkDeviceQueueCreateInfo> PopulateQueueInfos(
-        const VkSurfaceKHR& surface, const float& queuePriorities) const;
+        const Surface& surface, const float *pQueuePriorities) const;
 
 public:
 
@@ -71,14 +73,15 @@ public:
     VkDevice Access() const { return device_; }
     QueueFamilies AccessQueues() const { return queues_; }
 
-    void SetQueueFamilies(const VkSurfaceKHR& surface
+    void SetQueueFamilies(const Surface& surface
         , std::function<VkResult(QueueFamilies& queueFamilies
         , const VkPhysicalDevice& gpu
-        , const VkSurfaceKHR& surface)> find = FindQueueFamilies);
+        , const Surface& surface
+        , void *pUserData)> find = FindQueueFamilies);
 
     void Destroy();
-    VulkanDevice() {}
-    ~VulkanDevice() {}
+    Device() {}
+    ~Device() {}
 
 };
 

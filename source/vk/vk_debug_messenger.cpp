@@ -1,4 +1,4 @@
-#include "vk/debug_messenger.hpp"
+#include "vk/vk_debug_messenger.hpp"
 
 namespace vk {
 
@@ -44,8 +44,8 @@ VkResult DebugMessenger::Create(const VkInstance& instance
     , VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo
     , const VkAllocationCallbacks *pAllocator) {
 
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance
-        , "vkCreateDebugUtilsMessengerEXT");
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
+        instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
         return func(instance, pCreateInfo, pAllocator, &debugMessenger_);
     } else {

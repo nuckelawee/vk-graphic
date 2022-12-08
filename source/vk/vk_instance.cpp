@@ -1,8 +1,8 @@
-#include "vk/vulkan_instance.hpp"
+#include "vk/vk_instance.hpp"
 
 namespace vk {
 
-VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
+VkResult Instance::Create(const LayersAndExtensions& attachments
     , const AppSetting& appSetting) {
     
     VkResult result;
@@ -46,8 +46,8 @@ VkResult VulkanInstance::Create(const VulkanLayersAndExtensions& attachments
     return result;
 }
 
-VkResult VulkanInstance::IncludeDefaultLayersAndExtensions(
-    VulkanLayersAndExtensions& attachments) {
+VkResult Instance::IncludeDefaultLayersAndExtensions(
+    LayersAndExtensions& attachments) {
 
     uint32_t glfwExtensionCount = 0;
     const char** ppGlfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -82,7 +82,7 @@ VkResult VulkanInstance::IncludeDefaultLayersAndExtensions(
 #endif
 }
 
-VulkanInstance::~VulkanInstance() {
+Instance::~Instance() {
     debugMessenger_.Destroy(instance_, nullptr);
     vkDestroyInstance(instance_, nullptr);
 }

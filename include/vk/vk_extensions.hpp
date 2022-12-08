@@ -13,12 +13,12 @@ namespace vk {
 #ifdef DEBUG
 
 struct LayerProperties {
-    VkLayerProperties   layer;
+    VkLayerProperties layer;
     std::vector<VkExtensionProperties> extensions;
 };
 #endif
 
-class VulkanLayersAndExtensions {
+class LayersAndExtensions {
 
     std::vector<VkLayerProperties> enableInstanceLayers;
     std::vector<VkExtensionProperties> enableInstanceExtensions;

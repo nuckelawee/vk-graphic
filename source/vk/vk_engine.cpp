@@ -2,31 +2,38 @@
 
 namespace vk {
 
-void VulkanEngine::Update(AppSetting& setting, Window& window) {
+void Engine::Update(AppSetting& setting, Surface& surface) {
 
 }
 
-void VulkanEngine::Init(AppSetting& setting, Window& window) {
+void Engine::Init(AppSetting& setting, Surface& surface) {
     instance_.IncludeDefaultLayersAndExtensions(attachments_);
     instance_.Create(attachments_, setting);
 
-    window.CreateSurface(instance_.Access());
+    surface.Create(instance_);
 
-    device_.PickGpu(instance_.Access(), window.AccessSurface(), attachments_);
-    device_.CreateLogicalDevice(instance_.Access(), window.AccessSurface()
-        , attachments_);
-    device_.SetQueueFamilies(window.AccessSurface());
+    device_.PickGpu(instance_, surface, attachments_);
+    device_.CreateLogicalDevice(surface, attachments_);
+    device_.SetQueueFamilies(surface);
 
-    swapchain_.Create(device_, window.AccessSurface());
 #ifdef DEBUG
-    VulkanLayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
+    LayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
 #endif
+
+    swapchain_.CreateSwapchain(device_, surface);
+
+    const std::vector<std::string> shadersPath = {
+        "build/trivial_vert.spv",
+        "build/trivial_frag.spv"
+    };
+    pipeline_.Create(device_, swapchain_, shadersPath);
 }
 
-void VulkanEngine::Terminate(Window& window) {
-    swapchain_.Destroy(device_.Access());
+void Engine::Terminate(Surface& surface) {
+    swapchain_.Destroy(device_);
+    pipeline_.Destroy(device_);
     device_.Destroy();
-    window.DestroySurface(instance_.Access());
+    surface.Destroy(instance_);
 }
 
 } //vk
