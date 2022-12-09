@@ -2,7 +2,7 @@
 
 namespace vk {
 
-VkResult Instance::Create(const LayersAndExtensions& attachments
+void Instance::Create(const LayersAndExtensions& attachments
     , const AppSetting& appSetting) {
     
     VkResult result;
@@ -33,20 +33,11 @@ VkResult Instance::Create(const LayersAndExtensions& attachments
     instanceInfo.pNext = &debugMessengerInfo;
 #endif
     result = vkCreateInstance(&instanceInfo, nullptr, &instance_);
-
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nERROR [ Instance creation ]\n---> "\
-            "Failed to create instance\n\n";
-    }
-    assert(result == VK_SUCCESS);
+    ErrorManager::Validate(result, "Instance creation");
     debugMessenger_.Setup(instance_);
-#endif
-
-    return result;
 }
 
-VkResult Instance::IncludeDefaultLayersAndExtensions(
+void Instance::IncludeDefaultLayersAndExtensions(
     LayersAndExtensions& attachments) {
 
     uint32_t glfwExtensionCount = 0;
@@ -55,30 +46,18 @@ VkResult Instance::IncludeDefaultLayersAndExtensions(
     std::vector<const char*> glfwExtensions(ppGlfwExtensions
         , ppGlfwExtensions + glfwExtensionCount);
 
-#ifdef DEBUG
     glfwExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
     VkResult result = attachments.RequestInstanceExtensions(glfwExtensions);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nERROR [ GLFW extensions ]\n---> "\
-            "GLFW extensions doesn't support\n\n";
-    }
-    assert(result == VK_SUCCESS);
+    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+        , "GLFW extensions doesn't support", "Include layers and extensions");
 
-#else
-    return result;
-#endif
 #ifdef DEBUG
     const std::vector<const char*> validationLayer =
     { "VK_LAYER_KHRONOS_validation" };
 
     result = attachments.RequestInstanceLayers(validationLayer);
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nWARNING [ validation layer ]\n---> "\
-            "Validation layer doesn't active\n\n";
-    }
-    return result;
+    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+        , "Validation layer doesn't active", "Include layers and extensions");
 #endif
 }
 

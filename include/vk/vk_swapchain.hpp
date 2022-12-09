@@ -17,10 +17,10 @@ class Swapchain {
 
 public:
 
-    VkResult CreateSwapchain(const Device& device, const Surface& surface);
-    VkResult CreateImages(const Device& device);
-    VkResult CreateImageViews();
-    VkResult CreateFramebuffers();
+    void CreateSwapchain(const Device& device, const Surface& surface);
+    void CreateImages(const Device& device);
+    void CreateImageViews();
+    void CreateFramebuffers();
 
     void Destroy(const Device& device);
 

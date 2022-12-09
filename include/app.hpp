@@ -4,14 +4,16 @@
 
 #include "glfw_window.hpp"
 
+#include "error_manager.hpp"
 #include "thread_pool.hpp"
 #include "console.hpp"
 #include "statistic.hpp"
 
 class App {
 
-    vk::Engine engine_;
+    vk::Engine renderer_;
     GlfwWindow window_;
+
     AppSetting globalSetting_;
     ThreadPool threadPool_;
     Statistic statistic_;

@@ -39,9 +39,9 @@ class Device {
 
 public:
 
-    VkResult CreateLogicalDevice(const Surface& surface
+    void CreateLogicalDevice(const Surface& surface
         , const LayersAndExtensions& attachments);
-    VkResult PickGpu(const Instance& instance, const Surface& surface
+    void PickGpu(const Instance& instance, const Surface& surface
         , LayersAndExtensions& attachments
         , std::function<unsigned int(const VkPhysicalDevice&, const Surface&
         , LayersAndExtensions&)> IsGpuSuitable =

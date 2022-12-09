@@ -16,7 +16,7 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
-    engine_.Update(globalSetting_, static_cast<vk::Surface&>(window_));
+    renderer_.Update(globalSetting_, static_cast<vk::Surface&>(window_));
     statistic_.Update();
 }
 
@@ -36,11 +36,11 @@ void App::Run() {
 
 void App::Init() {
     window_.CreateWindow(globalSetting_);
-    engine_.Init(globalSetting_, window_);
+    renderer_.Init(globalSetting_, window_);
 }
 
 App::App() : threadPool_(std::thread::hardware_concurrency()-1) {}
 
 App::~App() {
-    engine_.Terminate(window_);
+    renderer_.Terminate(window_);
 }

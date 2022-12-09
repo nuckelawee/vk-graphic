@@ -6,7 +6,8 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
-#include <cassert>
+
+#include "error_manager.hpp"
 
 namespace vk {
 

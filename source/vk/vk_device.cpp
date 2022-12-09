@@ -140,16 +140,11 @@ VkResult Device::FindQueueFamilies(QueueFamilies& queueFamilies
         return VK_SUCCESS;
     } 
     if(graphicPriority == 0 || presentPriority == 0 || transferPriority == 0) {
-#ifdef DEBUG
-        std::cerr << "\nWARNING [ " << GetGpuName(gpu) 
-            << " ]\n---> Not all queue families supported\n\n";
-#endif   
+        ErrorManager::Validate(WARNING, "Not all queue families supported"
+            , GetGpuName(gpu));
         return VK_ERROR_FEATURE_NOT_PRESENT;
     }
-#ifdef DEBUG
-    std::cerr << "\nWARNING [ " << GetGpuName(gpu)
-        << " ]\n---> Queue capabilities combined \n\n";
-#endif
+    ErrorManager::Validate(WARNING, "Queue capabilities combined", GetGpuName(gpu));
     return VK_INCOMPLETE;
 }
 
@@ -174,20 +169,16 @@ unsigned int Device::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     const std::vector<const char*> extensions =
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     if(attachments.RequestDeviceExtensions(extensions, gpu) != VK_SUCCESS) {
-#ifdef DEBUG
-        std::cerr << "\nWARNING [ " << GetGpuName(gpu)
-            << " ]\n---> GPU extensions doesn't supported\n\n";
-#endif
+        ErrorManager::Validate(WARNING, "GPU extensions doesn't supported"
+            , GetGpuName(gpu));
         return 0;
     }
 
     SurfaceDetails surfaceCapabilities = surface.Capabilities(gpu);
     if(!(surfaceCapabilities.formats.size() > 0)
         || !(surfaceCapabilities.presentModes.size() > 0)) {
-#ifdef DEBUG
-        std::cerr << "\nWARNING [ " << GetGpuName(gpu)
-            << " ]\n---> GPU surface doesn't supported\n\n"; 
-#endif
+        ErrorManager::Validate(WARNING, "GPU surface doesn't supported"
+            , GetGpuName(gpu));
         return 0; 
     }
 
@@ -200,19 +191,15 @@ unsigned int Device::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     return priority; 
 }
 
-VkResult Device::PickGpu(const Instance& instance
+void Device::PickGpu(const Instance& instance
     , const Surface& surface, LayersAndExtensions& attachments
     , std::function<unsigned int(const VkPhysicalDevice&, const Surface&
     , LayersAndExtensions&)> IsGpuSuitable) {
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance.Access(), &deviceCount, nullptr);
-#ifdef DEBUG
-    if(deviceCount == 0) {
-        std::cerr << "\nERROR [ pick GPU ]\n---> Failed to find any GPU\n\n";
-    }
-    assert(deviceCount != 0);
-#endif
+    ErrorManager::Validate(Error(UNSOLVABLE, deviceCount == 0), "Failed to find any GPU"
+        , "Pick GPU");
     VkPhysicalDevice pGpus[deviceCount];
     vkEnumeratePhysicalDevices(instance.Access(), &deviceCount, pGpus);
     unsigned int suitable = 0;
@@ -223,16 +210,9 @@ VkResult Device::PickGpu(const Instance& instance
             gpu_ = pGpus[i];
         }
     }
-    if(gpu_ == VK_NULL_HANDLE) {
-#ifdef DEBUG
-        std::cerr << "\nERROR [ Pick GPU ]\n---> "\
-            "suitable not found GPU\n";
-        exit(EXIT_FAILURE);
-#endif
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-    FindQueueFamilies(queues_, gpu_, surface, nullptr);
-    return VK_SUCCESS;
+    ErrorManager::Validate(Error(UNSOLVABLE, gpu_ == VK_NULL_HANDLE)
+        , "suitable GPU not found", "Pick GPU");
+    //FindQueueFamilies(queues_, gpu_, surface, nullptr);
 }
 
 std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
@@ -258,38 +238,7 @@ std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
     return queueInfos;
 }
 
-#ifdef DEBUG
-void ProccessInstanceErrorCreation(VkResult result) {
-    switch(result) {
-    case VK_ERROR_OUT_OF_HOST_MEMORY:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error out of host memory\n\n";
-    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error out of device memory\n\n";
-    case VK_ERROR_INITIALIZATION_FAILED:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error initialization\n\n";
-    case VK_ERROR_EXTENSION_NOT_PRESENT:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error extension not present\n\n";
-    case VK_ERROR_FEATURE_NOT_PRESENT:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error feature not present\n\n";
-    case VK_ERROR_TOO_MANY_OBJECTS:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error too many objects\n\n";
-    case VK_ERROR_DEVICE_LOST:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Error device lost\n\n";
-    default:
-        std::cerr << "\nERROR [ Instance error creation ]\n---> "\
-            "Unknown error\n\n";
-    }
-}
-#endif
-    
-VkResult Device::CreateLogicalDevice(const Surface& surface
+void Device::CreateLogicalDevice(const Surface& surface
     , const LayersAndExtensions& attachments) {
 
     const float queuePriorities = 1.0f;
@@ -308,15 +257,7 @@ VkResult Device::CreateLogicalDevice(const Surface& surface
     deviceInfo.pEnabledFeatures = &deviceFeatures;
 
     VkResult result = vkCreateDevice(gpu_, &deviceInfo, nullptr, &device_);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        ProccessInstanceErrorCreation(result);
-        std::cerr << "\nERROR [ Device creation ]\n---> "\
-            "Failed to create device\n";
-    }
-#endif
-    assert(result == VK_SUCCESS);
-    return result;
+    ErrorManager::Validate(result, "Logical device creation");
 }
 
 void Device::SetQueueFamilies(const Surface& surface

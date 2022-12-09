@@ -25,16 +25,13 @@ int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
 
 VkExtent2D Swapchain::ChooseSuitableExtent(const VkSurfaceCapabilitiesKHR&
     capabilities) const {
-#ifdef DEBUG
-    if(capabilities.currentExtent.width != UINT32_MAX) {
-        std::cerr << "\nWARNING [ Extent choosing ]\n----> "\
-            "screen coordinates don't correspond to pixels\n\n";
-    }
-#endif
+    ErrorManager::Validate(Error(WARNING, capabilities.currentExtent.width
+        != UINT32_MAX), "Screen coordinates don't correspond to pixels"
+        , "Extent choosing");
     return capabilities.currentExtent;
 }
 
-VkResult Swapchain::CreateSwapchain(const Device& device
+void Swapchain::CreateSwapchain(const Device& device
     , const Surface& surface) {
 
     SurfaceDetails surfaceCapabilities = surface.Capabilities(device.AccessGpu());
@@ -45,24 +42,17 @@ VkResult Swapchain::CreateSwapchain(const Device& device
     int32_t index;
 
     index = ChooseSuitableFormat(surfaceCapabilities.formats);
-    if(index == -1) {
-#ifdef DEBUG
-        std::cerr << "\nERROR [ Swapchain creation ]\n----> "\
-            "Failed to find suitable surface format\n\n";
-        exit(EXIT_FAILURE);
-#endif    
-        return VK_ERROR_FORMAT_NOT_SUPPORTED;
-    }
+    ErrorManager::Validate(Error(UNSOLVABLE, index == -1)
+        , "Failed to find suitable surface format"
+        , "Swapchain creation");
     surfaceFormat = surfaceCapabilities.formats[index];
 
     index = ChooseSuitablePresent(
         surfaceCapabilities.presentModes);
     if(index == -1) {
-#ifdef DEBUG
-        std::cerr << "\nWARNING [ Swapchain creation ]\n----> "\
-            "Failed to find suitable present mode\n\n";
+        ErrorManager::Validate(WARNING, "Failed to find suitable present mode"
+            , "Swapchain creation");
         index = 0;
-#endif
     }
     presentMode = surfaceCapabilities.presentModes[index];
 
@@ -101,21 +91,15 @@ VkResult Swapchain::CreateSwapchain(const Device& device
     
     VkResult result = vkCreateSwapchainKHR(device.Access(), &swapchainInfo
         , nullptr, &swapchain_);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nERROR [ Swapchain creation ]\n---> "\
-            "Failed to create swapchain\n\n";
-        exit(EXIT_FAILURE);
-#endif
-    }
-    return result;
+    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+        , "Failed to create swapchain", "Swapchain creation");
 }
 
-VkResult Swapchain::CreateImages(const Device& device) {
+void Swapchain::CreateImages(const Device& device) {
     uint32_t imageCount;
     vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, nullptr);
     images_.resize(imageCount);
-    return vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, images_.data());
+    vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, images_.data());
 }
 
 void Swapchain::Destroy(const Device& device) {

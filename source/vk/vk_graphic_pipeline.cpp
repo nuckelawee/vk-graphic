@@ -2,24 +2,6 @@
 
 namespace vk {
 
-std::string GraphicPipeline::ReadShaderFromFile(const std::string& filepath) const {
-    std::ifstream file(filepath, std::ios::ate | std::ios::binary);
-    if(file.is_open() == false) {
-#ifdef DEBUG
-        std::cerr << "\nERROR [ File opening ]\n---> "\
-            "Failed to open file(" << filepath << ")\n\n";
-#endif
-        exit(EXIT_FAILURE);
-    }
-    size_t fileSize = static_cast<size_t>(file.tellg());
-    std::string code;
-    code.resize(fileSize);
-    file.seekg(0);
-    file.read(code.data(), fileSize);
-
-    file.close();
-    return code;
-}
 
 VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
     , const std::string& code) {
@@ -31,14 +13,7 @@ VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
     shaderInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkResult result = vkCreateShaderModule(device, &shaderInfo, nullptr, &shaderModule);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-
-        std::cerr << "\nERROR [ Shader module creation ]\n----> "\
-                    "Failed to create shader module\n\n";
-        exit(EXIT_FAILURE);
-    }
-#endif
+    ErrorManager::Validate(result, "Shader module creation");
     return shaderModule;
 }
 
@@ -150,7 +125,7 @@ PipelineStates GraphicPipeline::DescribePipelineStates(
     return states;
 }
 
-VkResult GraphicPipeline::CreateRenderPass(const VkDevice& device
+void GraphicPipeline::CreateRenderPass(const VkDevice& device
     , const Swapchain& swapchain, void *pUserData) {
 
     VkAttachmentDescription colorAttachment {};
@@ -181,17 +156,10 @@ VkResult GraphicPipeline::CreateRenderPass(const VkDevice& device
 
     VkResult result = vkCreateRenderPass(device, &renderPassInfo, nullptr
     , &renderPass_);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nERROR: [ Render pass creation ]\n---> "\
-            "Failed to create render pass\n";
-        exit(EXIT_FAILURE);
-    }
-#endif
-    return result;
+    ErrorManager::Validate(result, "Render pass creation");
 }
 
-VkResult GraphicPipeline::Create(const Device& device
+void GraphicPipeline::Create(const Device& device
     , const Swapchain& swapchain
     , const std::vector<std::string>& shaderFiles) {
 
@@ -201,13 +169,16 @@ VkResult GraphicPipeline::Create(const Device& device
     VkShaderModule geomShaderModule;
     bool geomShaderUse = (shaderFiles.size() > 2);
                             
-    const std::string vertCode = ReadShaderFromFile(shaderFiles[0]);
-    const std::string fragCode = ReadShaderFromFile(shaderFiles[1]);
+    const std::string vertCode = FileManager::ReadFile(shaderFiles[0]
+        , std::ios::ate | std::ios::binary);
+    const std::string fragCode = FileManager::ReadFile(shaderFiles[1]
+        , std::ios::ate | std::ios::binary);
 
     vertShaderModule = CreateShaderModule(logicDevice, vertCode);
     fragShaderModule = CreateShaderModule(logicDevice, fragCode);
     if(geomShaderUse == true) {
-        const std::string geomCode = ReadShaderFromFile(shaderFiles[2]);
+        const std::string geomCode = FileManager::ReadFile(shaderFiles[2]
+            , std::ios::ate | std::ios::binary);
         geomShaderModule = CreateShaderModule(logicDevice, geomCode);
     }
 
@@ -246,14 +217,7 @@ VkResult GraphicPipeline::Create(const Device& device
 
     VkResult result = vkCreatePipelineLayout(logicDevice, &pipelineLayoutInfo
         , nullptr, &pipelineLayout_);
-    if(result != VK_SUCCESS) {
-#ifdef DEBUG
-        std::cerr << "\nERROR [ Pipeline creation ]\n---> "\
-                    "Failed to create pipeline layout\n\n";
-        exit(EXIT_FAILURE);
-#endif
-        return result;
-    }
+    ErrorManager::Validate(result, "Pipeline creation");
 
     PipelineStates states = DescribePipelineStates(swapchain, nullptr);
 
@@ -277,20 +241,13 @@ VkResult GraphicPipeline::Create(const Device& device
 
     result = vkCreateGraphicsPipelines(logicDevice, VK_NULL_HANDLE, 1
         , &pipelineInfo, nullptr, &pipeline_);
-#ifdef DEBUG
-    if(result != VK_SUCCESS) {
-        std::cerr << "\nERROR [ Pipeline creation ]\n---> "\
-            "Failed to create graphics pipelines\n\n";
-        exit(EXIT_FAILURE);
-    } 
-#endif
+    ErrorManager::Validate(result, "Graphic pipeline creation");
    
     vkDestroyShaderModule(logicDevice, vertShaderModule, nullptr);
     vkDestroyShaderModule(logicDevice, fragShaderModule, nullptr);
     if(geomShaderUse == true) {
         vkDestroyShaderModule(logicDevice, geomShaderModule, nullptr);
     }
-    return result;
 }
 
 void GraphicPipeline::Destroy(const Device& device) {
