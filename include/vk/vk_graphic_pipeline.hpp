@@ -15,13 +15,15 @@ class GraphicPipeline {
 public:
 
     void Create(const Device& device, const Swapchain& swapchain
-        , const std::vector<std::string>& shadersPath);
+        , const std::vector<std::string>& shadersPath
+        , std::function<PipelineStates(const Swapchain& swapchain
+        , void *pUserData)> = DescribePipelineStates);
 
     VkPipeline Access() const { return pipeline_; }
     VkRenderPass AccessRenderPass() const { return renderPass_; }
 private:
 
-    PipelineStates DescribePipelineStates(const Swapchain& swapchain
+    static PipelineStates DescribePipelineStates(const Swapchain& swapchain
         , void *pUserData);
     void CreateRenderPass(const VkDevice& device, const Swapchain& swapchain
         , void *pUserData);

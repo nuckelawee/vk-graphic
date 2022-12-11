@@ -8,6 +8,7 @@
 #include "vk_device.hpp"
 #include "vk_swapchain.hpp"
 #include "vk_graphic_pipeline.hpp"
+#include "vk_command_buffer.hpp"
 
 namespace vk {
 
@@ -17,6 +18,8 @@ class Engine {
     Device device_;
     Swapchain swapchain_;
     GraphicPipeline pipeline_;
+    CommandPool commandPool_;
+    CommandBuffer commandBuffer_;
 
 public:
 

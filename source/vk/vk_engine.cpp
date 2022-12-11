@@ -28,9 +28,13 @@ void Engine::Init(AppSetting& setting, Surface& surface) {
     };
     pipeline_.Create(device_, swapchain_, shadersPath);
     swapchain_.CreateFramebuffers(device_, pipeline_);
+
+    commandPool_.Create(device_);
+    commandBuffer_.Create(device_, commandPool_);
 }
 
 void Engine::Terminate(Surface& surface) {
+    commandPool_.Destroy(device_);
     swapchain_.Destroy(device_);
     pipeline_.Destroy(device_);
     device_.Destroy();

@@ -161,7 +161,9 @@ void GraphicPipeline::CreateRenderPass(const VkDevice& device
 
 void GraphicPipeline::Create(const Device& device
     , const Swapchain& swapchain
-    , const std::vector<std::string>& shaderFiles) {
+    , const std::vector<std::string>& shaderFiles
+    , std::function<PipelineStates(const Swapchain& swapchain
+    , void *pUserData)> fillPipelineStates) {
 
     VkDevice logicDevice = device.Access();
     VkShaderModule vertShaderModule;
@@ -219,7 +221,7 @@ void GraphicPipeline::Create(const Device& device
         , nullptr, &pipelineLayout_);
     ErrorManager::Validate(result, "Pipeline creation");
 
-    PipelineStates states = DescribePipelineStates(swapchain, nullptr);
+    PipelineStates states = fillPipelineStates(swapchain, nullptr);
 
     VkGraphicsPipelineCreateInfo pipelineInfo {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

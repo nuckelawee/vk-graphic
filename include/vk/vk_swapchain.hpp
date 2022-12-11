@@ -28,6 +28,8 @@ public:
     VkSwapchainKHR Access() const { return swapchain_; }
     VkFormat AccessImageFormat() const { return imageFormat_; }
     VkExtent2D AccessExtent() const { return extent_; }
+    VkFramebuffer AccessFramebuffer(size_t index) const 
+    { return framebuffers_[index]; }
 private:
     void CreateImages(const Device& device);
     void CreateImageViews(const Device& device);
