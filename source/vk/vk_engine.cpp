@@ -20,13 +20,14 @@ void Engine::Init(AppSetting& setting, Surface& surface) {
     LayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
 #endif
 
-    swapchain_.CreateSwapchain(device_, surface);
+    swapchain_.Create(device_, surface);
 
     const std::vector<std::string> shadersPath = {
         "build/trivial_vert.spv",
         "build/trivial_frag.spv"
     };
     pipeline_.Create(device_, swapchain_, shadersPath);
+    swapchain_.CreateFramebuffers(device_, pipeline_);
 }
 
 void Engine::Terminate(Surface& surface) {

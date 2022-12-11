@@ -2,7 +2,10 @@
 
 #include "vk_device.hpp"
 
+
 namespace vk {
+
+class GraphicPipeline;
 
 class Swapchain {
 
@@ -17,10 +20,8 @@ class Swapchain {
 
 public:
 
-    void CreateSwapchain(const Device& device, const Surface& surface);
-    void CreateImages(const Device& device);
-    void CreateImageViews();
-    void CreateFramebuffers();
+    void Create(const Device& device, const Surface& surface);
+    void CreateFramebuffers(const Device& device, const GraphicPipeline& pipeline);
 
     void Destroy(const Device& device);
 
@@ -28,6 +29,8 @@ public:
     VkFormat AccessImageFormat() const { return imageFormat_; }
     VkExtent2D AccessExtent() const { return extent_; }
 private:
+    void CreateImages(const Device& device);
+    void CreateImageViews(const Device& device);
 
     int32_t ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>& 
         formats) const;

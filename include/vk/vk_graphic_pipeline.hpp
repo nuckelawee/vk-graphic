@@ -4,6 +4,8 @@
 
 namespace vk {
 
+class Swapchain;
+
 class GraphicPipeline {
 
     VkPipelineLayout pipelineLayout_;
@@ -14,6 +16,9 @@ public:
 
     void Create(const Device& device, const Swapchain& swapchain
         , const std::vector<std::string>& shadersPath);
+
+    VkPipeline Access() const { return pipeline_; }
+    VkRenderPass AccessRenderPass() const { return renderPass_; }
 private:
 
     PipelineStates DescribePipelineStates(const Swapchain& swapchain
