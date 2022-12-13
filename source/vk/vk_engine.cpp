@@ -66,8 +66,8 @@ void Engine::Init(Surface& surface) {
     swapchain_.Create(device_, surface);
 
     const std::vector<std::string> shadersPath = {
-        "build/trivial_vert.spv",
-        "build/trivial_frag.spv"
+        "build/vert_trivial.spv",
+        "build/frag_trivial.spv"
     };
     pipeline_.Create(device_, swapchain_, shadersPath);
     swapchain_.CreateFramebuffers(device_, pipeline_);
