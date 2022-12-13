@@ -1,11 +1,11 @@
 #include "app.hpp"
 
 bool App::CheckState() {
-    if(globalSetting_.State() == APP_TERMINATE) {
+    if(AppSetting::Get().State() == APP_TERMINATE) {
         window_.CloseWindow();
         return false;
     }
-    if(globalSetting_.State() == APP_STOP) {
+    if(AppSetting::Get().State() == APP_STOP) {
         return true;
     }
     return false;
@@ -16,14 +16,14 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
-    renderer_.Update(globalSetting_, static_cast<vk::Surface&>(window_));
+    renderer_.Update(static_cast<vk::Surface&>(window_));
     statistic_.Update();
 }
 
 void App::Run() {
 /*
     threadPool_.Submit(Task([&]() {
-        Console::Input(globalSetting_);
+        Console::Input(appSetting_);
     }));
 */
     Init();
@@ -31,12 +31,14 @@ void App::Run() {
         Update(); 
         glfwPollEvents();
     }
-    globalSetting_.ChangeState(APP_TERMINATE);
+    AppSetting::Get().ChangeState(APP_TERMINATE);
+    AppSetting::ShutDown();
 }
 
 void App::Init() {
-    window_.CreateWindow(globalSetting_);
-    renderer_.Init(globalSetting_, window_);
+    AppSetting::StartUp();
+    window_.CreateWindow();
+    renderer_.Init(window_);
 }
 
 App::App() : threadPool_(std::thread::hardware_concurrency()-1) {}

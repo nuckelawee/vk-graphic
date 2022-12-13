@@ -212,7 +212,6 @@ void Device::PickGpu(const Instance& instance
     }
     ErrorManager::Validate(Error(UNSOLVABLE, gpu_ == VK_NULL_HANDLE)
         , "suitable GPU not found", "Pick GPU");
-    //FindQueueFamilies(queues_, gpu_, surface, nullptr);
 }
 
 std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
@@ -258,6 +257,15 @@ void Device::CreateLogicalDevice(const Surface& surface
 
     VkResult result = vkCreateDevice(gpu_, &deviceInfo, nullptr, &device_);
     ErrorManager::Validate(result, "Logical device creation");
+
+    std::cout << "OK\n";
+    vkGetDeviceQueue(device_, queues_.graphic.index.value(), 0
+        , &(queues_.graphic.queue));
+    vkGetDeviceQueue(device_, queues_.present.index.value(), 0
+        , &(queues_.present.queue));
+    vkGetDeviceQueue(device_, queues_.transfer.index.value(), 0
+        , &(queues_.transfer.queue));
+    std::cout << "OK\n";
 }
 
 void Device::SetQueueFamilies(const Surface& surface

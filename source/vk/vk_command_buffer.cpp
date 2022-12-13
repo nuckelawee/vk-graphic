@@ -3,28 +3,31 @@
 namespace vk {
 
 void CommandBuffer::Create(const Device& device
-    , const CommandPool& commandPool) {
+    , const CommandPool& commandPool, size_t quantity) {
 
+    commandBuffers_.resize(quantity);
     VkCommandBufferAllocateInfo commandBufferInfo {};
     commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufferInfo.commandPool = commandPool.Access();
     commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    commandBufferInfo.commandBufferCount = 1;
+    commandBufferInfo.commandBufferCount = quantity;
 
     VkResult result = vkAllocateCommandBuffers(device.Access()
-        , &commandBufferInfo, &commandBuffer_);
+        , &commandBufferInfo, commandBuffers_.data());
     ErrorManager::Validate(result, "Command buffer creation");
 }
 
 void CommandBuffer::Record(const Device& device
     , const GraphicPipeline& pipeline
-    , const Swapchain& swapchain, uint32_t imageIndex) {
+    , const Swapchain& swapchain, uint32_t imageIndex
+    , unsigned int bufferIndex) {
 
     VkCommandBufferBeginInfo bufferInfo {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     bufferInfo.flags = 0;
     bufferInfo.pInheritanceInfo = nullptr;
-    VkResult result = vkBeginCommandBuffer(commandBuffer_, &bufferInfo);
+    VkResult result = vkBeginCommandBuffer(commandBuffers_[bufferIndex]
+        , &bufferInfo);
     ErrorManager::Validate(result, "Command buffer recording");
 
     VkRenderPassBeginInfo renderPassInfo {};
@@ -37,9 +40,9 @@ void CommandBuffer::Record(const Device& device
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearValue;
     
-    vkCmdBeginRenderPass(commandBuffer_, &renderPassInfo
+    vkCmdBeginRenderPass(commandBuffers_[bufferIndex], &renderPassInfo
         , VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS
+    vkCmdBindPipeline(commandBuffers_[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS
         , pipeline.Access());
 
     VkViewport viewport {};
@@ -49,16 +52,16 @@ void CommandBuffer::Record(const Device& device
     viewport.height = swapchain.AccessExtent().height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer_, 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffers_[bufferIndex], 0, 1, &viewport);
 
     VkRect2D scissor {};
     scissor.offset = { 0, 0 };
     scissor.extent = swapchain.AccessExtent();
-    vkCmdSetScissor(commandBuffer_, 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffers_[bufferIndex], 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer_, 3, 1, 0, 0);
-    vkCmdEndRenderPass(commandBuffer_);
-    result = vkEndCommandBuffer(commandBuffer_);
+    vkCmdDraw(commandBuffers_[bufferIndex], 3, 1, 0, 0);
+    vkCmdEndRenderPass(commandBuffers_[bufferIndex]);
+    result = vkEndCommandBuffer(commandBuffers_[bufferIndex]);
     ErrorManager::Validate(result, "Command buffer recording");
 }
 

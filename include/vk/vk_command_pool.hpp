@@ -15,6 +15,9 @@ public:
 
     VkCommandPool Access() const { return commandPool_; }
 
+    CommandPool() {}
+    ~CommandPool() {}
+
 };
 
 } // vk

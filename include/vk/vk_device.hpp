@@ -13,6 +13,7 @@ namespace vk {
 struct QueueFamily {
     std::optional<uint32_t> index;
     VkQueueFamilyProperties queueProperties;
+    VkQueue queue;
        
     bool IsComplete() { return index.has_value(); }
 

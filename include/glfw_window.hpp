@@ -12,7 +12,7 @@ public:
     virtual VkResult Create(const vk::Instance& instance);
     virtual vk::SurfaceDetails Capabilities(const VkPhysicalDevice& gpu) const;
 
-    void CreateWindow(const AppSetting& appSetting);
+    void CreateWindow();
     static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
         , int action, int modes);
     

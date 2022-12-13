@@ -7,15 +7,20 @@ namespace vk {
 
 class CommandBuffer {
 
-    VkCommandBuffer commandBuffer_;
+    std::vector<VkCommandBuffer> commandBuffers_;
 
 public:
-    void Create(const Device& device, const CommandPool& commandPool);
+    void Create(const Device& device, const CommandPool& commandPool
+        , size_t quantity);
 
     void Record(const Device& device, const GraphicPipeline& pipeline
-        , const Swapchain& swapchain, uint32_t imageIndex);
+        , const Swapchain& swapchain, uint32_t imageIndex
+        , unsigned int bufferIndex);
 
-    VkCommandBuffer Access() const { return commandBuffer_; }
+    std::vector<VkCommandBuffer>& Access() { return commandBuffers_; }
+
+    CommandBuffer() {}
+    ~CommandBuffer() {}
 
 };
 

@@ -14,9 +14,10 @@ class App {
     vk::Engine renderer_;
     GlfwWindow window_;
 
-    AppSetting globalSetting_;
     ThreadPool threadPool_;
     Statistic statistic_;
+
+    //AppSetting appSetting_;
 
 private:
     bool CheckState();

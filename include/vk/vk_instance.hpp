@@ -14,8 +14,7 @@ class Instance {
 
 public:
 
-    void Create(const LayersAndExtensions& attachments
-        , const AppSetting& appSetting);
+    void Create(const LayersAndExtensions& attachments);
 
     static void IncludeDefaultLayersAndExtensions(LayersAndExtensions&);
 

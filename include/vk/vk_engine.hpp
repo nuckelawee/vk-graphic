@@ -9,6 +9,8 @@
 #include "vk_swapchain.hpp"
 #include "vk_graphic_pipeline.hpp"
 #include "vk_command_buffer.hpp"
+#include "vk_semaphore.hpp"
+#include "vk_fence.hpp"
 
 namespace vk {
 
@@ -19,12 +21,18 @@ class Engine {
     Swapchain swapchain_;
     GraphicPipeline pipeline_;
     CommandPool commandPool_;
-    CommandBuffer commandBuffer_;
+    CommandBuffer commandBuffers_;
+
+    Semaphore imageAvailable_[AppSetting::frames];
+    Semaphore renderFinished_[AppSetting::frames];
+    Fence inFlight_[AppSetting::frames];
+
+    unsigned int currentFrame_ = 0;
 
 public:
 
-    void Init(AppSetting& setting, Surface& surface); 
-    void Update(AppSetting& setting, Surface& surface);
+    void Init(Surface& surface); 
+    void Update(Surface& surface);
     void Terminate(Surface& window);
 
     Engine operator=(const Engine& engine) = delete;

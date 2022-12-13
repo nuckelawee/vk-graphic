@@ -1,6 +1,6 @@
 #include "glfw_window.hpp"
 
-void GlfwWindow::CreateWindow(const AppSetting& appSetting) {
+void GlfwWindow::CreateWindow() {
     if(glfwInit() == 0) {
 #ifdef DEBUG
         std::cerr << "\nERROR [ GLFW ]\n---> GLFW library failed to init\n\n";
@@ -10,8 +10,8 @@ void GlfwWindow::CreateWindow(const AppSetting& appSetting) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     
-    pWindow_ = glfwCreateWindow(appSetting.Width(), appSetting.Height()
-        , appSetting.AppName().c_str(), nullptr, nullptr);
+    pWindow_ = glfwCreateWindow(AppSetting::Get().Width(), AppSetting::Get().Height()
+        , AppSetting::pAppName, nullptr, nullptr);
 
     if(pWindow_ == nullptr) {
 #ifdef DEBUG
