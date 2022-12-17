@@ -35,6 +35,13 @@ public:
     void Update(Surface& surface);
     void Terminate(Surface& window);
 
+private:
+    
+    uint32_t Acquire(Surface& surface);
+    void Submit(VkSemaphore*, VkSemaphore*);
+    void Present(Surface&, VkSemaphore*, uint32_t);
+
+public:
     Engine operator=(const Engine& engine) = delete;
     Engine(const Engine& engine) = delete;
     Engine() {}

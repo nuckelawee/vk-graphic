@@ -15,9 +15,12 @@ public:
     void CreateWindow();
     static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
         , int action, int modes);
+    static void FramebufferResize(GLFWwindow *pWindow, int width, int height);
     
     void CloseWindow();
     bool ShouldClosed() const;
+
+    GLFWwindow& AccessGLFW() { return *pWindow_; }
 
     GlfwWindow() {}
     ~GlfwWindow();

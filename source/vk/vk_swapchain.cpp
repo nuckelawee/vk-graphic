@@ -23,15 +23,30 @@ int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
     return -1;
 }
 
-VkExtent2D Swapchain::ChooseSuitableExtent(const VkSurfaceCapabilitiesKHR&
-    capabilities) const {
-    ErrorManager::Validate(Error(WARNING, capabilities.currentExtent.width
-        != UINT32_MAX), "Screen coordinates don't correspond to pixels"
-        , "Extent choosing");
-    return capabilities.currentExtent;
+VkExtent2D Swapchain::ChooseSuitableExtent(const Device& device
+    , Surface& surface) const {
+
+    VkSurfaceCapabilitiesKHR capabilities = surface.Capabilities(
+        device.AccessGpu()).capabilities;
+    if(capabilities.currentExtent.width == UINT32_MAX) {
+        ErrorManager::Validate(WARNING, "Screen coordinates don't correspond "\
+            "to pixels", "Extent choosing");
+        return capabilities.currentExtent;
+    }
+    int width, height;
+    glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+    VkExtent2D extent = {
+        static_cast<uint32_t>(width),
+        static_cast<uint32_t>(height)
+    };
+    extent.width = std::clamp(extent.width, capabilities.minImageExtent.width
+        , capabilities.maxImageExtent.width);
+    extent.height = std::clamp(extent.height, capabilities.minImageExtent.height
+        , capabilities.maxImageExtent.height);
+    return extent;
 }
 
-void Swapchain::Create(const Device& device, const Surface& surface) {
+void Swapchain::Create(const Device& device, Surface& surface) {
     SurfaceDetails surfaceCapabilities = surface.Capabilities(device.AccessGpu());
 
     QueueFamilies queueFamilies = device.AccessQueues();
@@ -54,7 +69,7 @@ void Swapchain::Create(const Device& device, const Surface& surface) {
     }
     presentMode = surfaceCapabilities.presentModes[index];
 
-    extent_ = ChooseSuitableExtent(surfaceCapabilities.capabilities);
+    extent_ = ChooseSuitableExtent(device, surface);
     imageFormat_ = surfaceFormat.format;
     
     VkSwapchainCreateInfoKHR swapchainInfo {};
@@ -145,6 +160,25 @@ void Swapchain::CreateFramebuffers(const Device& device
         ErrorManager::Validate(result, "Framebuffer creation");
     }
 }
+
+void Swapchain::Recreate(const Device& device, Surface& surface
+    , const GraphicPipeline& pipeline) {
+
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+    while(width == 0 || height == 0) {
+        glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device.Access());
+
+    Destroy(device);
+    Create(device, surface);
+    CreateFramebuffers(device, pipeline);
+
+}
+     
 
 void Swapchain::Destroy(const Device& device) {
     for(auto framebuffer : framebuffers_) {

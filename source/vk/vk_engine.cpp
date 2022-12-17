@@ -2,26 +2,23 @@
 
 namespace vk {
 
-void Engine::Update(Surface& surface) {
-    vkWaitForFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access())
-        , VK_TRUE, UINT64_MAX);
-    vkResetFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access()));
-
+uint32_t Engine::Acquire(Surface& surface) {
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(device_.Access(), swapchain_.Access(),
-        UINT64_MAX, imageAvailable_[currentFrame_].Access()
+    VkResult result = vkAcquireNextImageKHR(device_.Access(), swapchain_.Access()
+        , UINT64_MAX, imageAvailable_[currentFrame_].Access()
         , VK_NULL_HANDLE, &imageIndex);
-    
-    vkResetCommandBuffer(commandBuffers_.Access()[currentFrame_], 0);
 
+    if(result == VK_ERROR_OUT_OF_DATE_KHR) {
+        swapchain_.Recreate(device_, surface, pipeline_);
+    } else {
+        ErrorManager::Validate(result, "Image acquiring");
+    }
+    return imageIndex;
+}
+
+void Engine::Submit(VkSemaphore *pWaitSemaphores, VkSemaphore *pSignalSemaphores) {
     VkPipelineStageFlags waitStages[] = 
         { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSemaphore pSignalSemaphores[] = { renderFinished_[currentFrame_].Access() };
-    VkSemaphore pWaitSemaphores[] = { imageAvailable_[currentFrame_].Access() };
-        
-    commandBuffers_.Record(device_, pipeline_, swapchain_, imageIndex
-        , currentFrame_);
-
     VkSubmitInfo submitInfo {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.waitSemaphoreCount = 1;
@@ -35,17 +32,47 @@ void Engine::Update(Surface& surface) {
     VkResult result = vkQueueSubmit(device_.AccessQueues().graphic.queue
         , 1, &submitInfo, inFlight_[currentFrame_].Access());
     ErrorManager::Validate(result, "Drawing");
-    
+}
+
+void Engine::Present(Surface& surface, VkSemaphore *pWaitSemaphores
+    , uint32_t imageIndex) {
+
     VkSwapchainKHR swapchain = swapchain_.Access();
     VkPresentInfoKHR presentInfo {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = pSignalSemaphores;
+    presentInfo.pWaitSemaphores = pWaitSemaphores;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapchain;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(device_.AccessQueues().present.queue, &presentInfo);
+    VkResult result = vkQueuePresentKHR(device_.AccessQueues().present.queue
+        , &presentInfo);
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        swapchain_.Recreate(device_, surface, pipeline_);
+    } else {
+        ErrorManager::Validate(result, "Presentation");
+    }
+}
+
+void Engine::Update(Surface& surface) {
+    vkWaitForFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access())
+        , VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex = Acquire(surface);
+
+    vkResetFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access()));
+
+    vkResetCommandBuffer(commandBuffers_.Access()[currentFrame_], 0);
+    commandBuffers_.Record(device_, pipeline_, swapchain_, imageIndex
+        , currentFrame_);
+
+    VkSemaphore pSignalSemaphores[] = { renderFinished_[currentFrame_].Access() };
+    VkSemaphore pWaitSemaphores[] = { imageAvailable_[currentFrame_].Access() };
+    
+    Submit(pWaitSemaphores, pSignalSemaphores);
+    Present(surface, pSignalSemaphores, imageIndex);
+
     currentFrame_ = (imageIndex+1) % AppSetting::frames;
 }
 

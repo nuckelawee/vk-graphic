@@ -1,7 +1,9 @@
 #pragma once
 
-#include "vk_device.hpp"
+#include <algorithm>
 
+#include "vk_device.hpp"
+#include "glfw_window.hpp"
 
 namespace vk {
 
@@ -20,8 +22,10 @@ class Swapchain {
 
 public:
 
-    void Create(const Device& device, const Surface& surface);
+    void Create(const Device& device, Surface& surface);
     void CreateFramebuffers(const Device& device, const GraphicPipeline& pipeline);
+    void Recreate(const Device& device, Surface& surface
+        , const GraphicPipeline& pipeline);
 
     void Destroy(const Device& device);
 
@@ -38,8 +42,8 @@ private:
         formats) const;
     int32_t ChooseSuitablePresent(const std::vector<VkPresentModeKHR>& 
         presentModes) const;
-    VkExtent2D ChooseSuitableExtent(const VkSurfaceCapabilitiesKHR&
-        capabilities) const;
+    VkExtent2D ChooseSuitableExtent(const Device& device
+        , Surface& surface) const;
 
 public:
     Swapchain() {}

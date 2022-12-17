@@ -27,6 +27,7 @@ public:
     { return SurfaceDetails{}; }
 
     VkSurfaceKHR Access() const { return surface_; }
+    virtual GLFWwindow& AccessGLFW() = 0;
 
     void Destroy(const Instance& instance);
  
