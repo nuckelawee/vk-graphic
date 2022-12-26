@@ -10,11 +10,11 @@ print-%  : ; @echo $* = $($*)
 
 GLSLC = glslc
 
-SRCMODULES := main.cpp app.cpp vk_extensions.cpp vk_instance.cpp vk_device.cpp glfw_window.cpp vk_debug_messenger.cpp thread_pool.cpp blocking_queue.cpp console.cpp statistic.cpp vk_swapchain.cpp vk_engine.cpp vk_graphic_pipeline.cpp vk_pipeline_states.cpp vk_surface.cpp error_manager.cpp file_manager.cpp vk_command_buffer.cpp vk_command_pool.cpp vk_semaphore.cpp vk_fence.cpp app_setting.cpp
+SRCMODULES := main.cpp app.cpp vk_extensions.cpp vk_instance.cpp vk_device.cpp glfw_window.cpp vk_debug_messenger.cpp thread_pool.cpp blocking_queue.cpp console.cpp statistic.cpp vk_swapchain.cpp vk_engine.cpp vk_graphic_pipeline.cpp vk_pipeline_states.cpp vk_surface.cpp error_manager.cpp file_manager.cpp vk_command_buffers.cpp vk_command_pool.cpp vk_semaphore.cpp vk_fence.cpp app_setting.cpp vk_vertex.cpp vk_buffer.cpp
 
 OBJMODULES = $(SRCMODULES:.cpp=.o)
 
-VERTSHADERS := vert_trivial.vert
+VERTSHADERS := vert_trivial.vert vert_vertex_buffer.vert
 FRAGSHADERS := frag_trivial.frag
 SPVSHADERS = $(VERTSHADERS:.vert=.spv) $(FRAGSHADERS:.frag=.spv)
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk/vk_pipeline_states.hpp"
+#include "vk/vk_vertex.hpp"
 
 namespace vk {
 

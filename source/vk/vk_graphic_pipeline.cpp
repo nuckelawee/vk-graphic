@@ -41,11 +41,16 @@ PipelineStates GraphicPipeline::DescribePipelineStates(
     dynamicStateInfo.dynamicStateCount = 2;
     dynamicStateInfo.pDynamicStates = pDynamicStates;
 
+    VkVertexInputBindingDescription bindingDescription
+        = Vertex::BindingDescription();
+    std::vector<VkVertexInputAttributeDescription> attributeDescription
+        = Vertex::AttributeDescription();
+
     inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    inputInfo.vertexBindingDescriptionCount = 0;
-    inputInfo.pVertexBindingDescriptions = nullptr;
-    inputInfo.vertexAttributeDescriptionCount = 0;
-    inputInfo.pVertexAttributeDescriptions = nullptr;
+    inputInfo.vertexBindingDescriptionCount = 1;
+    inputInfo.pVertexBindingDescriptions = &bindingDescription;
+    inputInfo.vertexAttributeDescriptionCount = attributeDescription.size();
+    inputInfo.pVertexAttributeDescriptions = attributeDescription.data();
 
     assemblyInfo.sType = 
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

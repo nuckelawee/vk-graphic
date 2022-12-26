@@ -4,12 +4,12 @@ namespace vk {
 
 uint32_t Engine::Acquire(Surface& surface) {
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(device_.Access(), swapchain_.Access()
+    VkResult result = vkAcquireNextImageKHR(pDevice_->Access(), pSwapchain_->Access()
         , UINT64_MAX, imageAvailable_[currentFrame_].Access()
         , VK_NULL_HANDLE, &imageIndex);
 
     if(result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_);
+        pSwapchain_->Recreate(*pDevice_, surface, *pPipeline_);
     } else {
         ErrorManager::Validate(result, "Image acquiring");
     }
@@ -17,6 +17,9 @@ uint32_t Engine::Acquire(Surface& surface) {
 }
 
 void Engine::Submit(VkSemaphore *pWaitSemaphores, VkSemaphore *pSignalSemaphores) {
+    auto commandBuffer = pCommandBuffers_->AccessGraphic();
+    advance(commandBuffer, currentFrame_);
+
     VkPipelineStageFlags waitStages[] = 
         { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSubmitInfo submitInfo {};
@@ -25,11 +28,11 @@ void Engine::Submit(VkSemaphore *pWaitSemaphores, VkSemaphore *pSignalSemaphores
     submitInfo.pWaitSemaphores = pWaitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &(commandBuffers_.Access()[currentFrame_]);
+    submitInfo.pCommandBuffers = &(*commandBuffer);
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = pSignalSemaphores;
     
-    VkResult result = vkQueueSubmit(device_.AccessQueues().graphic.queue
+    VkResult result = vkQueueSubmit(pDevice_->AccessQueues().graphic.queue
         , 1, &submitInfo, inFlight_[currentFrame_].Access());
     ErrorManager::Validate(result, "Drawing");
 }
@@ -37,7 +40,7 @@ void Engine::Submit(VkSemaphore *pWaitSemaphores, VkSemaphore *pSignalSemaphores
 void Engine::Present(Surface& surface, VkSemaphore *pWaitSemaphores
     , uint32_t imageIndex) {
 
-    VkSwapchainKHR swapchain = swapchain_.Access();
+    VkSwapchainKHR swapchain = pSwapchain_->Access();
     VkPresentInfoKHR presentInfo {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
@@ -46,26 +49,28 @@ void Engine::Present(Surface& surface, VkSemaphore *pWaitSemaphores
     presentInfo.pSwapchains = &swapchain;
     presentInfo.pImageIndices = &imageIndex;
 
-    VkResult result = vkQueuePresentKHR(device_.AccessQueues().present.queue
+    VkResult result = vkQueuePresentKHR(pDevice_->AccessQueues().present.queue
         , &presentInfo);
     if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_);
+        pSwapchain_->Recreate(*pDevice_, surface, *pPipeline_);
     } else {
         ErrorManager::Validate(result, "Presentation");
     }
 }
 
 void Engine::Update(Surface& surface) {
-    vkWaitForFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access())
+    vkWaitForFences(pDevice_->Access(), 1, &(inFlight_[currentFrame_].Access())
         , VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex = Acquire(surface);
 
-    vkResetFences(device_.Access(), 1, &(inFlight_[currentFrame_].Access()));
+    vkResetFences(pDevice_->Access(), 1, &(inFlight_[currentFrame_].Access()));
 
-    vkResetCommandBuffer(commandBuffers_.Access()[currentFrame_], 0);
-    commandBuffers_.Record(device_, pipeline_, swapchain_, imageIndex
-        , currentFrame_);
+    auto commandBuffer = pCommandBuffers_->AccessGraphic();
+    advance(commandBuffer, currentFrame_);
+    vkResetCommandBuffer(*commandBuffer, 0);
+    pCommandBuffers_->RecordDrawCommands(*pDevice_, *pPipeline_, *pSwapchain_
+        , imageIndex, *pVertexBuffer_, 0, commandBuffer);
 
     VkSemaphore pSignalSemaphores[] = { renderFinished_[currentFrame_].Access() };
     VkSemaphore pWaitSemaphores[] = { imageAvailable_[currentFrame_].Access() };
@@ -77,51 +82,89 @@ void Engine::Update(Surface& surface) {
 }
 
 void Engine::Init(Surface& surface) {
-    instance_.IncludeDefaultLayersAndExtensions(attachments_);
-    instance_.Create(attachments_);
+    pAttachments_ = new LayersAndExtensions;
+    pInstance_ = new Instance;
+    pDevice_ = new Device;
+    pSwapchain_ = new Swapchain; 
+    pPipeline_ = new GraphicPipeline;
+    pCommandPools_ = new CommandPool[2];
+    pCommandBuffers_ = new CommandBuffers;
+    pVertexBuffer_ = new Buffer;
 
-    surface.Create(instance_);
+    pInstance_->IncludeDefaultLayersAndExtensions(*pAttachments_);
+    pInstance_->Create(*pAttachments_);
 
-    device_.PickGpu(instance_, surface, attachments_);
-    device_.SetQueueFamilies(surface);
-    device_.CreateLogicalDevice(surface, attachments_);
+    surface.Create(*pInstance_);
+
+    pDevice_->PickGpu(*pInstance_, surface, *pAttachments_);
+    pDevice_->SetQueueFamilies(surface);
+    pDevice_->CreateLogicalDevice(surface, *pAttachments_);
 
 #ifdef DEBUG
-    LayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
+    LayersAndExtensions::PrintAvailableLayersAndExtensions(pDevice_->AccessGpu());
 #endif
 
-    swapchain_.Create(device_, surface);
+    pSwapchain_->Create(*pDevice_, surface);
 
     const std::vector<std::string> shadersPath = {
-        "build/vert_trivial.spv",
+    //    "build/vert_trivial.spv",
+        "build/vert_vertex_buffer.spv",
         "build/frag_trivial.spv"
     };
-    pipeline_.Create(device_, swapchain_, shadersPath);
-    swapchain_.CreateFramebuffers(device_, pipeline_);
+    pPipeline_->Create(*pDevice_, *pSwapchain_, shadersPath);
+    pSwapchain_->CreateFramebuffers(*pDevice_, *pPipeline_);
 
-    commandPool_.Create(device_);
-    commandBuffers_.Create(device_, commandPool_, AppSetting::frames);
+    pCommandPools_[GRAPHICS].Create(*pDevice_, GRAPHICS);
+    pCommandPools_[TRANSFER].Create(*pDevice_, TRANSFER);
+    pCommandBuffers_->Allocate(*pDevice_, GRAPHICS, pCommandPools_[GRAPHICS]
+        , AppSetting::frames);
+    pCommandBuffers_->Allocate(*pDevice_, TRANSFER, pCommandPools_[TRANSFER], 1);
+
+    const std::vector<Vertex> vertices {
+        { {  0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.5f,  0.5f }, { 0.0f, 1.0f, 0.0f } },
+        { { -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f } }
+    };
+
+    pVertexBuffer_->Create(*pDevice_, *pCommandBuffers_, VERTEX_BUFFER
+        , vertices.data(), sizeof(Vertex) * vertices.size());
 
     for(size_t i = 0; i < AppSetting::frames; i++) {
-        imageAvailable_[i].Create(device_);
-        renderFinished_[i].Create(device_);
-        inFlight_[i].Create(device_);
+        imageAvailable_[i].Create(*pDevice_);
+        renderFinished_[i].Create(*pDevice_);
+        inFlight_[i].Create(*pDevice_);
     }
+
+    pCommandBuffers_->Free(*pDevice_, pCommandPools_[TRANSFER]
+        , pCommandBuffers_->AccessTransfer(), 1);
+    pCommandPools_[TRANSFER].Destroy(*pDevice_);
+
 }
 
 void Engine::Terminate(Surface& surface) {
-    vkDeviceWaitIdle(device_.Access());
+    vkDeviceWaitIdle(pDevice_->Access());
 
     for(size_t i = 0; i < AppSetting::frames; i++) {
-        imageAvailable_[i].Destroy(device_);
-        renderFinished_[i].Destroy(device_);
-        inFlight_[i].Destroy(device_);
+        imageAvailable_[i].Destroy(*pDevice_);
+        renderFinished_[i].Destroy(*pDevice_);
+        inFlight_[i].Destroy(*pDevice_);
     }
-    commandPool_.Destroy(device_);
-    swapchain_.Destroy(device_);
-    pipeline_.Destroy(device_);
-    device_.Destroy();
-    surface.Destroy(instance_);
+    pVertexBuffer_->Destroy(*pDevice_);
+    pCommandBuffers_->Free(*pDevice_, pCommandPools_[GRAPHICS]
+        , pCommandBuffers_->AccessGraphic(), 1);
+    pCommandPools_[GRAPHICS].Destroy(*pDevice_);
+    pSwapchain_->Destroy(*pDevice_);
+    pPipeline_->Destroy(*pDevice_);
+    pDevice_->Destroy();
+    surface.Destroy(*pInstance_);
+
+    delete pAttachments_;
+    delete pInstance_;
+    delete pDevice_;
+    delete pSwapchain_;
+    delete pPipeline_;
+    delete pCommandBuffers_;
+    delete pVertexBuffer_;
 }
 
 } //vk

@@ -4,13 +4,16 @@
 
 namespace vk {
 
+enum commandPoolType { GRAPHICS, TRANSFER };
+
 class CommandPool {
 
     VkCommandPool commandPool_;
 
 public:
 
-    void Create(const Device& device);
+    void Create(const Device& device, commandPoolType type = GRAPHICS);
+
     void Destroy(const Device& device);
 
     VkCommandPool Access() const { return commandPool_; }

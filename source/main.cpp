@@ -1,6 +1,8 @@
 #include "app.hpp"
 
 int main() {
-    App app;
-    app.Run();
+    App *app = new App;
+    app->Run();
+    delete app;
+    return 0;
 }

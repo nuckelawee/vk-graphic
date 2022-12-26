@@ -214,6 +214,24 @@ void Device::PickGpu(const Instance& instance
         , "suitable GPU not found", "Pick GPU");
 }
 
+int32_t Device::FindMemoryProperties(uint32_t memoryTypeBits
+    , VkMemoryPropertyFlags requiredProperties) const {
+
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(gpu_, &memoryProperties);
+      
+    for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
+        const bool isRequiredMemoryType = requiredProperties & (1 << i);
+        const bool hasRequiredProperties 
+            = (memoryProperties.memoryTypes[i].propertyFlags & requiredProperties)
+            == requiredProperties;
+        if(isRequiredMemoryType && hasRequiredProperties) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
     const Surface& surface, const float *pQueuePriorities) const {
 
@@ -258,14 +276,12 @@ void Device::CreateLogicalDevice(const Surface& surface
     VkResult result = vkCreateDevice(gpu_, &deviceInfo, nullptr, &device_);
     ErrorManager::Validate(result, "Logical device creation");
 
-    std::cout << "OK\n";
     vkGetDeviceQueue(device_, queues_.graphic.index.value(), 0
         , &(queues_.graphic.queue));
     vkGetDeviceQueue(device_, queues_.present.index.value(), 0
         , &(queues_.present.queue));
     vkGetDeviceQueue(device_, queues_.transfer.index.value(), 0
         , &(queues_.transfer.queue));
-    std::cout << "OK\n";
 }
 
 void Device::SetQueueFamilies(const Surface& surface
@@ -275,6 +291,12 @@ void Device::SetQueueFamilies(const Surface& surface
     , void *pUserData)> find) {
     
     find(queues_, gpu_, surface, nullptr); 
+#ifdef DEBUG
+    std::cout << "Queue family indices:\n\tgraphic queue --->  [ " 
+        << queues_.graphic.index.value() << " ]\n\tpresent queue --->  [ "
+        << queues_.present.index.value() << " ]\n\ttransfer queue ---> [ "
+        << queues_.transfer.index.value() << " ]\n\n";
+#endif
 }
 
 void Device::Destroy() {

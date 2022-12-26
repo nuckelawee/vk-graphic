@@ -11,7 +11,7 @@
 
 class App {
 
-    vk::Engine renderer_;
+    vk::Engine *renderer_;
     GlfwWindow window_;
 
     ThreadPool threadPool_;

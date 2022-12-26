@@ -48,6 +48,9 @@ public:
         , LayersAndExtensions&)> IsGpuSuitable =
           ChooseDefaultGpu);
 
+    int32_t FindMemoryProperties(uint32_t memoryTypeBits
+        , VkMemoryPropertyFlags requiredProperties) const;
+
 private:
     static VkResult FindQueueFamilies(QueueFamilies& indices
         , const VkPhysicalDevice& gpu, const Surface& surface

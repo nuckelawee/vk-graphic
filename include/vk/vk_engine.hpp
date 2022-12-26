@@ -8,27 +8,27 @@
 #include "vk_device.hpp"
 #include "vk_swapchain.hpp"
 #include "vk_graphic_pipeline.hpp"
-#include "vk_command_buffer.hpp"
+#include "vk_command_buffers.hpp"
 #include "vk_semaphore.hpp"
 #include "vk_fence.hpp"
 
 namespace vk {
 
 class Engine {
-    LayersAndExtensions attachments_;
-    Instance instance_;
-    Device device_;
-    Swapchain swapchain_;
-    GraphicPipeline pipeline_;
-    CommandPool commandPool_;
-    CommandBuffer commandBuffers_;
+    LayersAndExtensions *pAttachments_;
+    Instance *pInstance_;
+    Device *pDevice_;
+    Swapchain *pSwapchain_;
+    GraphicPipeline *pPipeline_;
+    CommandPool *pCommandPools_;
+    CommandBuffers *pCommandBuffers_;
+    Buffer *pVertexBuffer_;
 
     Semaphore imageAvailable_[AppSetting::frames];
     Semaphore renderFinished_[AppSetting::frames];
     Fence inFlight_[AppSetting::frames];
 
     unsigned int currentFrame_ = 0;
-
 public:
 
     void Init(Surface& surface); 
