@@ -1,5 +1,6 @@
 #pragma once
 
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -13,7 +14,7 @@ class Statistic {
 private:
     void PrintStatistic();
 public:
-    void Update(bool isPrint = true);
+    void Update(bool isPrint = false);
 
     float DeltaTime() { return deltaTime_; }
     float curTime() { return curTime_; }

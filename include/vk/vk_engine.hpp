@@ -8,27 +8,22 @@
 #include "vk_device.hpp"
 #include "vk_swapchain.hpp"
 #include "vk_graphic_pipeline.hpp"
-#include "vk_command_buffers.hpp"
-#include "vk_semaphore.hpp"
-#include "vk_fence.hpp"
+#include "vk_data_loader.hpp"
+#include "vk_command_manager.hpp"
 
 namespace vk {
 
 class Engine {
+    AppSetting& setting_;
+
     LayersAndExtensions *pAttachments_;
     Instance *pInstance_;
     Device *pDevice_;
     Swapchain *pSwapchain_;
     GraphicPipeline *pPipeline_;
-    CommandPool *pCommandPools_;
-    CommandBuffers *pCommandBuffers_;
-    Buffer *pVertexBuffer_;
-
-    Semaphore imageAvailable_[AppSetting::frames];
-    Semaphore renderFinished_[AppSetting::frames];
-    Fence inFlight_[AppSetting::frames];
-
-    unsigned int currentFrame_ = 0;
+    DataLoader *pDataLoader_;
+    CommandManager *pCommandManager_;
+    Regulator *pRegulator_;
 public:
 
     void Init(Surface& surface); 
@@ -37,14 +32,13 @@ public:
 
 private:
     
-    uint32_t Acquire(Surface& surface);
-    void Submit(VkSemaphore*, VkSemaphore*);
-    void Present(Surface&, VkSemaphore*, uint32_t);
+    void Acquire(Surface& surface);
+    void Present(Surface& surface, VkPresentInfoKHR& presentInfo);
 
 public:
     Engine operator=(const Engine& engine) = delete;
     Engine(const Engine& engine) = delete;
-    Engine() {}
+    Engine(AppSetting& setting) : setting_(setting) {}
     ~Engine() {}
 
 }; 

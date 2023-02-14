@@ -68,8 +68,6 @@ private:
     static std::string GetGpuType(VkPhysicalDeviceType gpuType);
 
 #endif
-    std::vector<VkDeviceQueueCreateInfo> PopulateQueueInfos(
-        const Surface& surface, const float *pQueuePriorities) const;
 
 public:
 

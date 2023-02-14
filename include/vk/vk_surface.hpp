@@ -16,6 +16,7 @@ struct SurfaceDetails {
 
 class Surface {
 protected:
+    AppSetting& setting_;
 
     VkSurfaceKHR surface_;
 
@@ -26,13 +27,14 @@ public:
     virtual SurfaceDetails Capabilities(const VkPhysicalDevice& gpu) const
     { return SurfaceDetails{}; }
 
-    VkSurfaceKHR Access() const { return surface_; }
+    const VkSurfaceKHR& Access() const { return surface_; }
+    VkSurfaceKHR& Access() { return surface_; }
     virtual GLFWwindow& AccessGLFW() = 0;
 
     void Destroy(const Instance& instance);
  
-    Surface() {}
-    ~Surface() {}
+    Surface(AppSetting& setting) : setting_(setting) {}
+    virtual ~Surface() {}
 };
 
 } //vk

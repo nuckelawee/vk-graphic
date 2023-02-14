@@ -179,6 +179,23 @@ void Swapchain::Recreate(const Device& device, Surface& surface
 
 }
      
+VkViewport Swapchain::Viewport() const {
+    VkViewport viewport {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = extent_.width;
+    viewport.height = extent_.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    return viewport;
+}
+
+VkRect2D Swapchain::Scissor() const {
+    VkRect2D scissor {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent_;
+    return scissor;
+}
 
 void Swapchain::Destroy(const Device& device) {
     for(auto framebuffer : framebuffers_) {

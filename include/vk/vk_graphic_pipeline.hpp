@@ -22,6 +22,9 @@ public:
 
     VkPipeline Access() const { return pipeline_; }
     VkRenderPass AccessRenderPass() const { return renderPass_; }
+    VkRenderPassBeginInfo RenderPassBegin(const Setting& setting
+        , const Swapchain& swapchain) const;
+
 private:
 
     static PipelineStates DescribePipelineStates(const Swapchain& swapchain

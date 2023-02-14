@@ -3,25 +3,27 @@
 #include <string>
 #include <atomic>
 
+#include "statistic.hpp"
+#include "vk/vk_setting.hpp"
+
 enum AppState { APP_WORK, APP_STOP, APP_TERMINATE };
 
 class AppSetting {
 
     static int frad;
-    static AppSetting *pSetting_;
     const std::string confFilepath_ = "../config/setting.conf";
-
-public:
-    static constexpr char pAppName[] = "Vulkan";
-    static const unsigned int frames = 2;
-
-private:
+    const std::string appName = "Vulkan";
 
     std::atomic<AppState> state_ {APP_WORK};
     std::atomic<uint16_t> windowWidth_ {800};
     std::atomic<uint16_t> windowHeight_ {800};
+    vk::Setting vulkan_setting;
+    Statistic statistic;
 
 public:
+    void Update();
+
+    const std::string& Application() const { return appName; }
 
     void ChangeState(AppState newState);
     void ChangeWidth(unsigned int newWidth);
@@ -31,14 +33,10 @@ public:
     unsigned int Width() const;
     unsigned int Height() const;
     
-    static void StartUp();
-    static void ShutDown();
-    static AppSetting& Get();
+    vk::Setting& Vulkan() { return vulkan_setting; }
+    vk::Setting Vulkan() const { return vulkan_setting; }
 
-private:
-    AppSetting(const AppSetting&) = delete;
-    AppSetting& operator=(const AppSetting&) = delete;
-    
+    //AppSetting(const AppSetting& setting) {}
     AppSetting() {}
     ~AppSetting() {}
 };

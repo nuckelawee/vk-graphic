@@ -22,6 +22,6 @@ public:
 
     GLFWwindow& AccessGLFW() { return *pWindow_; }
 
-    GlfwWindow() {}
-    ~GlfwWindow();
+    GlfwWindow(AppSetting& setting) : Surface(setting) {}
+    virtual ~GlfwWindow();
 };

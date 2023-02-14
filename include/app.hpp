@@ -3,21 +3,21 @@
 #include "vk/vk_engine.hpp"
 
 #include "glfw_window.hpp"
+#include "camera.hpp"
 
 #include "error_manager.hpp"
 #include "thread_pool.hpp"
 #include "console.hpp"
-#include "statistic.hpp"
+
 
 class App {
+    AppSetting setting_;
 
-    vk::Engine *renderer_;
-    GlfwWindow window_;
+    vk::Engine *pRenderer_;
+    Camera camera;
+    GlfwWindow *pWindow_;
 
     ThreadPool threadPool_;
-    Statistic statistic_;
-
-    //AppSetting appSetting_;
 
 private:
     bool CheckState();

@@ -7,8 +7,8 @@ void GlfwWindow::CreateWindow() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     
-    pWindow_ = glfwCreateWindow(AppSetting::Get().Width(), AppSetting::Get().Height()
-        , AppSetting::pAppName, nullptr, nullptr);
+    pWindow_ = glfwCreateWindow(setting_.Width(), setting_.Height()
+        , setting_.Application().c_str(), nullptr, nullptr);
 
     ErrorManager::Validate(Error(UNSOLVABLE, pWindow_ == nullptr)
         , "GLFW window creation failed", "GLFW window creation");

@@ -2,55 +2,25 @@
 
 namespace vk {
 
-uint32_t Engine::Acquire(Surface& surface) {
-    uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(pDevice_->Access(), pSwapchain_->Access()
-        , UINT64_MAX, imageAvailable_[currentFrame_].Access()
-        , VK_NULL_HANDLE, &imageIndex);
-
+void Engine::Acquire(Surface& surface) {
+    VkResult result = pRegulator_->BeginRender(*pDevice_, *pSwapchain_
+        , setting_.Vulkan());
     if(result == VK_ERROR_OUT_OF_DATE_KHR) {
         pSwapchain_->Recreate(*pDevice_, surface, *pPipeline_);
     } else {
         ErrorManager::Validate(result, "Image acquiring");
     }
-    return imageIndex;
 }
-
-void Engine::Submit(VkSemaphore *pWaitSemaphores, VkSemaphore *pSignalSemaphores) {
-    auto commandBuffer = pCommandBuffers_->AccessGraphic();
-    advance(commandBuffer, currentFrame_);
-
-    VkPipelineStageFlags waitStages[] = 
-        { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSubmitInfo submitInfo {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = pWaitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &(*commandBuffer);
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = pSignalSemaphores;
-    
-    VkResult result = vkQueueSubmit(pDevice_->AccessQueues().graphic.queue
-        , 1, &submitInfo, inFlight_[currentFrame_].Access());
-    ErrorManager::Validate(result, "Drawing");
-}
-
-void Engine::Present(Surface& surface, VkSemaphore *pWaitSemaphores
-    , uint32_t imageIndex) {
-
-    VkSwapchainKHR swapchain = pSwapchain_->Access();
-    VkPresentInfoKHR presentInfo {};
+     
+void Engine::Present(Surface& surface, VkPresentInfoKHR& presentInfo) {
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = pWaitSemaphores;
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &swapchain;
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pSwapchains = &pSwapchain_->Access();
+    presentInfo.pImageIndices = &setting_.Vulkan().ImageIndex();
 
     VkResult result = vkQueuePresentKHR(pDevice_->AccessQueues().present.queue
         , &presentInfo);
+
     if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         pSwapchain_->Recreate(*pDevice_, surface, *pPipeline_);
     } else {
@@ -59,26 +29,28 @@ void Engine::Present(Surface& surface, VkSemaphore *pWaitSemaphores
 }
 
 void Engine::Update(Surface& surface) {
-    vkWaitForFences(pDevice_->Access(), 1, &(inFlight_[currentFrame_].Access())
-        , VK_TRUE, UINT64_MAX);
 
-    uint32_t imageIndex = Acquire(surface);
+    Acquire(surface);
 
-    vkResetFences(pDevice_->Access(), 1, &(inFlight_[currentFrame_].Access()));
+    CommandInfo commandInfo;
+    commandInfo.type = GRAPHICS;
+    commandInfo.bufferCount = 1;
+    commandInfo.offset = setting_.Vulkan().CurrentFrame();
 
-    auto commandBuffer = pCommandBuffers_->AccessGraphic();
-    advance(commandBuffer, currentFrame_);
-    vkResetCommandBuffer(*commandBuffer, 0);
-    pCommandBuffers_->RecordDrawCommands(*pDevice_, *pPipeline_, *pSwapchain_
-        , imageIndex, *pVertexBuffer_, 0, commandBuffer);
+    pCommandManager_->RecordDrawCommands(*pDevice_, setting_.Vulkan()
+        , *pPipeline_, *pSwapchain_, *pDataLoader_, commandInfo);
 
-    VkSemaphore pSignalSemaphores[] = { renderFinished_[currentFrame_].Access() };
-    VkSemaphore pWaitSemaphores[] = { imageAvailable_[currentFrame_].Access() };
-    
-    Submit(pWaitSemaphores, pSignalSemaphores);
-    Present(surface, pSignalSemaphores, imageIndex);
+    VkSubmitInfo submitInfo {};
+    VkPresentInfoKHR presentInfo {};
 
-    currentFrame_ = (imageIndex+1) % AppSetting::frames;
+    pRegulator_->Sync(setting_.Vulkan(), submitInfo, presentInfo);
+
+    pCommandManager_->Submit(*pDevice_, setting_.Vulkan(), *pRegulator_
+        , submitInfo, commandInfo);
+    Present(surface, presentInfo);
+
+    setting_.Vulkan().CurrentFrame() = (setting_.Vulkan().ImageIndex()+1) 
+        % vk::Setting::frames;
 }
 
 void Engine::Init(Surface& surface) {
@@ -87,15 +59,14 @@ void Engine::Init(Surface& surface) {
     pDevice_ = new Device;
     pSwapchain_ = new Swapchain; 
     pPipeline_ = new GraphicPipeline;
-    pCommandPools_ = new CommandPool[2];
-    pCommandBuffers_ = new CommandBuffers;
-    pVertexBuffer_ = new Buffer;
+    pCommandManager_ = new CommandManager;
+    pDataLoader_ = new DataLoader;
+    pRegulator_ = new Regulator;
 
     pInstance_->IncludeDefaultLayersAndExtensions(*pAttachments_);
-    pInstance_->Create(*pAttachments_);
+    pInstance_->Create(setting_, *pAttachments_);
 
     surface.Create(*pInstance_);
-
     pDevice_->PickGpu(*pInstance_, surface, *pAttachments_);
     pDevice_->SetQueueFamilies(surface);
     pDevice_->CreateLogicalDevice(surface, *pAttachments_);
@@ -107,52 +78,62 @@ void Engine::Init(Surface& surface) {
     pSwapchain_->Create(*pDevice_, surface);
 
     const std::vector<std::string> shadersPath = {
-    //    "build/vert_trivial.spv",
         "build/vert_vertex_buffer.spv",
         "build/frag_trivial.spv"
     };
     pPipeline_->Create(*pDevice_, *pSwapchain_, shadersPath);
     pSwapchain_->CreateFramebuffers(*pDevice_, *pPipeline_);
 
-    pCommandPools_[GRAPHICS].Create(*pDevice_, GRAPHICS);
-    pCommandPools_[TRANSFER].Create(*pDevice_, TRANSFER);
-    pCommandBuffers_->Allocate(*pDevice_, GRAPHICS, pCommandPools_[GRAPHICS]
-        , AppSetting::frames);
-    pCommandBuffers_->Allocate(*pDevice_, TRANSFER, pCommandPools_[TRANSFER], 1);
+    pCommandManager_->Allocate(*pDevice_, CommandInfo(GRAPHICS
+        , vk::Setting::frames));
 
-    const std::vector<Vertex> vertices {
-        { {  0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.5f,  0.5f }, { 0.0f, 1.0f, 0.0f } },
-        { { -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f } }
+    const Vertex pVertices[] = {
+        { {  0.3f, -0.3f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.3f,  0.3f }, { 1.0f, 1.0f, 0.0f } },
+        { { -0.3f,  0.3f }, { 1.0f, 0.0f, 1.0f } },
+        { { -0.3f, -0.3f }, { 1.0f, 1.0f, 0.0f } },
+
+        { { -0.6f, -0.8f }, { 1.0f, 0.0f, 0.0f } },
+        { { -0.4f, -0.4f }, { 0.0f, 1.0f, 0.0f } },
+        { { -0.8f, -0.4f }, { 0.0f, 0.0f, 1.0f } },
+ 
     };
 
-    pVertexBuffer_->Create(*pDevice_, *pCommandBuffers_, VERTEX_BUFFER
-        , vertices.data(), sizeof(Vertex) * vertices.size());
+    const uint16_t pIndices[] = {
+          0, 1, 2, 0, 2, 3
+        , 4, 5, 6 
+    };
 
-    for(size_t i = 0; i < AppSetting::frames; i++) {
-        imageAvailable_[i].Create(*pDevice_);
-        renderFinished_[i].Create(*pDevice_);
-        inFlight_[i].Create(*pDevice_);
-    }
+    DataInfo vertexInfo;
+    vertexInfo.pData = pVertices;
+    vertexInfo.elementCount = 7;
+    vertexInfo.elementSize = sizeof(Vertex);
+    vertexInfo.type = VERTEX;
 
-    pCommandBuffers_->Free(*pDevice_, pCommandPools_[TRANSFER]
-        , pCommandBuffers_->AccessTransfer(), 1);
-    pCommandPools_[TRANSFER].Destroy(*pDevice_);
+    DataInfo indexInfo;
+    indexInfo.pData = pIndices;
+    indexInfo.elementCount = 9;
+    indexInfo.elementSize = sizeof(uint16_t);
+    indexInfo.type = INDEX;
 
+    pDataLoader_->Begin(*pDevice_, *pCommandManager_);
+
+    pDataLoader_->LoadData(*pDevice_, vertexInfo, *pCommandManager_);
+    pDataLoader_->LoadData(*pDevice_, indexInfo, *pCommandManager_);
+
+    pDataLoader_->End(*pDevice_, *pCommandManager_);
+
+    pRegulator_->Create(*pDevice_);
+
+    setting_.Vulkan().CurrentFrame() = 0;
 }
 
 void Engine::Terminate(Surface& surface) {
     vkDeviceWaitIdle(pDevice_->Access());
 
-    for(size_t i = 0; i < AppSetting::frames; i++) {
-        imageAvailable_[i].Destroy(*pDevice_);
-        renderFinished_[i].Destroy(*pDevice_);
-        inFlight_[i].Destroy(*pDevice_);
-    }
-    pVertexBuffer_->Destroy(*pDevice_);
-    pCommandBuffers_->Free(*pDevice_, pCommandPools_[GRAPHICS]
-        , pCommandBuffers_->AccessGraphic(), 1);
-    pCommandPools_[GRAPHICS].Destroy(*pDevice_);
+    pRegulator_->Destroy(*pDevice_);
+    pDataLoader_->Destroy(*pDevice_);
+    pCommandManager_->Destroy(*pDevice_);
     pSwapchain_->Destroy(*pDevice_);
     pPipeline_->Destroy(*pDevice_);
     pDevice_->Destroy();
@@ -163,8 +144,9 @@ void Engine::Terminate(Surface& surface) {
     delete pDevice_;
     delete pSwapchain_;
     delete pPipeline_;
-    delete pCommandBuffers_;
-    delete pVertexBuffer_;
+    delete pDataLoader_;
+    delete pCommandManager_;
+    delete pRegulator_;
 }
 
 } //vk

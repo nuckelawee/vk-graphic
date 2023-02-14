@@ -1,17 +1,9 @@
 #include "app_setting.hpp"
 
-AppSetting* AppSetting::pSetting_;
+//AppSetting* AppSetting::pSetting_;
 
-void AppSetting::StartUp() {
-    pSetting_ = new AppSetting;
-}
-
-void AppSetting::ShutDown() {
-    delete pSetting_;
-}
-
-AppSetting& AppSetting::Get() {
-    return *pSetting_;
+void AppSetting::Update() {
+    statistic.Update(true);
 }
 
 AppState AppSetting::State() { return state_.load(); }

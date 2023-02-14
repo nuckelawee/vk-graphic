@@ -1,11 +1,11 @@
 #include "app.hpp"
 
 bool App::CheckState() {
-    if(AppSetting::Get().State() == APP_TERMINATE) {
-        window_.CloseWindow();
+    if(setting_.State() == APP_TERMINATE) {
+        pWindow_->CloseWindow();
         return false;
     }
-    if(AppSetting::Get().State() == APP_STOP) {
+    if(setting_.State() == APP_STOP) {
         return true;
     }
     return false;
@@ -16,8 +16,8 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
-    renderer_->Update(static_cast<vk::Surface&>(window_));
-    statistic_.Update();
+    pRenderer_->Update(static_cast<vk::Surface&>(*pWindow_));
+    setting_.Update();
 }
 
 void App::Run() {
@@ -27,24 +27,23 @@ void App::Run() {
     }));
 */
     Init();
-    while(!window_.ShouldClosed()) {
+    while(!pWindow_->ShouldClosed()) {
         Update(); 
         glfwPollEvents();
     }
-    AppSetting::Get().ChangeState(APP_TERMINATE);
-    AppSetting::ShutDown();
 }
 
 void App::Init() {
-    AppSetting::StartUp();
-    window_.CreateWindow();
-    renderer_ = new vk::Engine;
-    renderer_->Init(window_);
+    pWindow_ = new GlfwWindow(setting_);
+    pWindow_->CreateWindow();
+    pRenderer_ = new vk::Engine(setting_);
+    pRenderer_->Init(*pWindow_);
 }
 
 App::App() : threadPool_(std::thread::hardware_concurrency()-1) {}
 
 App::~App() {
-    renderer_->Terminate(window_);
-    delete renderer_;
+    pRenderer_->Terminate(*pWindow_);
+    delete pRenderer_;
+    delete pWindow_;
 }

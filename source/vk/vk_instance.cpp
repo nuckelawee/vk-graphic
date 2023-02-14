@@ -2,15 +2,16 @@
 
 namespace vk {
 
-void Instance::Create(const LayersAndExtensions& attachments) {
+void Instance::Create(const AppSetting& setting,
+    const LayersAndExtensions& attachments) {
     
     VkResult result;
 
     VkApplicationInfo applicationInfo {};
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    applicationInfo.pApplicationName = AppSetting::Get().pAppName;
+    applicationInfo.pApplicationName = setting.Application().c_str();
     applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    applicationInfo.pEngineName = "No engine";
+    applicationInfo.pEngineName = setting.Vulkan().Engine().c_str();
     applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     applicationInfo.apiVersion = VK_API_VERSION_1_0;
 

@@ -231,9 +231,16 @@ int32_t Device::FindMemoryProperties(uint32_t memoryTypeBits
     }
     return -1;
 }
-
+/*
 std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
     const Surface& surface, const float *pQueuePriorities) const {
+
+   return queueInfos;
+}
+*/
+
+void Device::CreateLogicalDevice(const Surface& surface
+    , const LayersAndExtensions& attachments) {
 
     QueueFamilies queueFamilies;
     FindQueueFamilies(queueFamilies, gpu_, surface, nullptr);
@@ -242,25 +249,22 @@ std::vector<VkDeviceQueueCreateInfo> Device::PopulateQueueInfos(
         queueFamilies.present,
         queueFamilies.transfer,
     };
+    uint32_t maxQueueCount = std::max( {
+          queueFamilies.graphic.queueProperties.queueCount
+        , queueFamilies.present.queueProperties.queueCount
+        , queueFamilies.transfer.queueProperties.queueCount
+    } );
 
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
     VkDeviceQueueCreateInfo queueInfo {};
+    float pQueuePriorities[maxQueueCount] = { 1.0f };
     for(auto& queueFamily : uniqueQueueFamilies) {
         queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueInfo.queueFamilyIndex = queueFamily.index.value();
-        queueInfo.queueCount = 1;//queueFamily.queueProperties.queueCount;
+        queueInfo.queueCount = queueFamily.queueProperties.queueCount;
         queueInfo.pQueuePriorities = pQueuePriorities;
         queueInfos.push_back(queueInfo);
     }
-    return queueInfos;
-}
-
-void Device::CreateLogicalDevice(const Surface& surface
-    , const LayersAndExtensions& attachments) {
-
-    const float queuePriorities = 1.0f;
-    std::vector<VkDeviceQueueCreateInfo> queueInfos = PopulateQueueInfos(surface
-        , &queuePriorities);
 
     VkPhysicalDeviceFeatures deviceFeatures {};
     std::vector<const char*> deviceExtensions = attachments.GetDeviceExtensionNames();

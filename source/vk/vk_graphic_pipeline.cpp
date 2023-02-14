@@ -2,7 +2,6 @@
 
 namespace vk {
 
-
 VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
     , const std::string& code) {
 
@@ -265,6 +264,23 @@ void GraphicPipeline::Create(const Device& device
     if(geomShaderUse == true) {
         vkDestroyShaderModule(logicDevice, geomShaderModule, nullptr);
     }
+}
+
+VkRenderPassBeginInfo GraphicPipeline::RenderPassBegin(const Setting& setting
+    , const Swapchain& swapchain) const {
+
+    VkRenderPassBeginInfo renderPassInfo {};
+
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass_;
+    renderPassInfo.framebuffer = 
+        swapchain.AccessFramebuffer(setting.ImageIndex());
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = swapchain.AccessExtent();
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &(setting.ClearValue());
+
+    return renderPassInfo;
 }
 
 void GraphicPipeline::Destroy(const Device& device) {
