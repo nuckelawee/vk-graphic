@@ -15,6 +15,7 @@ void GlfwWindow::CreateWindow() {
 
     glfwSetKeyCallback(pWindow_, KeyCallback);
     glfwSetFramebufferSizeCallback(pWindow_, FramebufferResize);
+    //glfwSwapInterval(1);
 }
 
 VkResult GlfwWindow::Create(const vk::Instance& instance) {

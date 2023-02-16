@@ -2,24 +2,35 @@
 
 namespace vk {
 
-BufferInfo DataLoader::LoadData(const Device& device, const DataInfo& info
-    , CommandManager& commandManager, bool useStagingBuffer) {
+BufferInfo DataLoader::LoadData(const Device& device
+    , CommandManager& commandManager, const DataInfo& info
+    , bool useStagingBuffer) {
 
     VkBufferUsageFlags bufferFlags;
     VkMemoryPropertyFlags memoryFlags;
     switch(info.type) { 
-    case VERTEX:
+    case BUFFER_TYPE_VERTEX:
         bufferFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         useStagingBuffer = true;
         break;
-    case INDEX:
+    case BUFFER_TYPE_INDEX:
         bufferFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         useStagingBuffer = true;
         break;
-    case UNIFORM:
+    case BUFFER_TYPE_UNIFORM:
         //CreateUniformBuffer(device, size);
+    case BUFFER_TYPE_COMPLEX:
+        ErrorManager::Validate(WARNING, "Complex buffer must be created "\
+            "by a function "\
+            "BufferInfo DataLoader::LoadComplexData(const Device& device "\
+            ", CommandManager& commandManager, const *pDataInfo infos "\
+            ", size_t infoCount, ObjectInfo *pObjects) ", "Data loading");
+        bufferFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        break;
     default:
         ErrorManager::Validate(WARNING, "Trying to create unsupported "\
             "buffer", "Data loading");
@@ -48,6 +59,86 @@ BufferInfo DataLoader::LoadData(const Device& device, const DataInfo& info
     return bufferInfo;
 }
 
+void DataLoader::ShiftIndexes(DataInfo& info, uint16_t vertexShift) {
+    uint16_t *ptr = static_cast<uint16_t*>(info.pData);
+    for(size_t i = 0; i < info.elementCount; i++) {
+        ptr[i] += vertexShift;
+    }
+}
+
+VkDeviceSize DataLoader::MergeData(DataInfo **pInfos, unsigned char **pData
+    , ObjectInfo *pObjects, BufferInfo& bufferInfo, size_t objectCount) {
+
+    uint16_t vertexElementCount = 0;
+    uint16_t indexElementCount = 0;
+    VkDeviceSize vertexMemoryShift = 0;
+    VkDeviceSize indexMemoryShift = 0;
+    for(size_t i = 0; i < objectCount; i++) {
+        ShiftIndexes(*(pInfos[i+objectCount]), vertexElementCount);
+
+        vertexMemoryShift += pInfos[i]->elementCount * pInfos[i]->elementSize;
+        vertexElementCount += pInfos[i]->elementCount;
+
+        pObjects[i].indexShift = indexElementCount;
+        pObjects[i].indexCount = pInfos[i+objectCount]->elementCount;
+
+        indexElementCount += pInfos[i+objectCount]->elementCount;
+        indexMemoryShift += pInfos[i+objectCount]->elementCount 
+            * pInfos[i]->elementSize;
+    }
+
+    VkDeviceSize memoryShift = vertexMemoryShift + indexMemoryShift;
+    *pData = new unsigned char[memoryShift];
+    memoryShift = 0;
+    
+    for(size_t i = 0; i < 2*objectCount; i++) {
+        memcpy(*pData + memoryShift, pInfos[i]->pData
+            , pInfos[i]->elementCount * pInfos[i]->elementSize);
+        memoryShift += pInfos[i]->elementCount * pInfos[i]->elementSize;
+    }
+
+    bufferInfo.type = BUFFER_TYPE_COMPLEX;
+    bufferInfo.elementCount = vertexElementCount + indexElementCount;
+    bufferInfo.indexMemoryShift = vertexMemoryShift;
+    bufferInfo.pObjectInfos = pObjects;
+    bufferInfo.objectCount = objectCount;
+    return memoryShift;
+}
+
+BufferInfo DataLoader::LoadComplexData(const Device& device
+    , CommandManager& commandManager, DataInfo **pInfos
+    , ObjectInfo *pObjects, size_t objectCount) {
+
+    unsigned char *pData = nullptr;
+    BufferInfo bufferInfo {};
+    VkDeviceSize memoryShift = MergeData(pInfos, &pData, pObjects
+        , bufferInfo, objectCount);
+
+    VkBufferUsageFlags bufferFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    Create(device, buffer, memory, pData, memoryShift
+        , *(commandManager.Access(copyCommands_))
+        , bufferFlags, memoryFlags, true);
+
+    delete[] pData;
+
+    auto pair = data_.find(BUFFER_TYPE_COMPLEX);
+    if(pair == data_.end()) {
+        data_.emplace(BUFFER_TYPE_COMPLEX, BufferData());
+        pair = data_.find(BUFFER_TYPE_COMPLEX);
+    }
+    pair->second.buffers.push_back(buffer);
+    pair->second.memory.push_back(memory);
+    
+    pair->second.infos.push_back(bufferInfo);
+    bufferInfo.bufferIndex = pair->second.infos.size();
+    return bufferInfo;
+}
+
 const BufferData& DataLoader::Access(bufferType type) {
     auto buffers = data_.find(type);
     if(buffers == data_.end()) {
@@ -59,7 +150,8 @@ const BufferData& DataLoader::Access(bufferType type) {
 }
 
 void DataLoader::Begin(const Device& device, CommandManager& commandManager) {
-    copyCommands_ = commandManager.Allocate(device, CommandInfo(TRANSFER, 1));
+    copyCommands_ = commandManager.Allocate(device
+        , CommandInfo(COMMAND_TYPE_TRANSFER, 1));
 }
 
 void DataLoader::Begin(const CommandInfo& copyCommands) {

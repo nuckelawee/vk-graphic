@@ -52,10 +52,10 @@ void CommandManager::RecordDrawCommands(const Device& device
 
     vkResetCommandBuffer(commandBuffer, 0);
 
-    VkCommandBufferBeginInfo bufferInfo {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    bufferInfo.flags = 0;
-    bufferInfo.pInheritanceInfo = nullptr;
+    VkCommandBufferBeginInfo commandBufferInfo {};
+    commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    commandBufferInfo.flags = 0;
+    commandBufferInfo.pInheritanceInfo = nullptr;
 
     VkRenderPassBeginInfo renderPassInfo = pipeline.RenderPassBegin(
         setting, swapchain); 
@@ -63,7 +63,7 @@ void CommandManager::RecordDrawCommands(const Device& device
     VkRect2D scissor = swapchain.Scissor();
 
     VkResult result = vkBeginCommandBuffer(commandBuffer
-        , &bufferInfo);
+        , &commandBufferInfo);
     ErrorManager::Validate(result, "Command buffers recording");
     
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo
@@ -74,18 +74,20 @@ void CommandManager::RecordDrawCommands(const Device& device
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    const BufferData& vertexBuffers = dataLoader.Access(VERTEX);
-    const BufferData& indexBuffer = dataLoader.Access(INDEX);
+    const BufferData& buffer = dataLoader.Access(BUFFER_TYPE_COMPLEX);
+    const BufferInfo& bufferInfo = buffer.infos[0];
   
-    const VkDeviceSize& offset = 0;//3*sizeof(Vertex);
+    const VkDeviceSize& offset = 0;
     vkCmdBindVertexBuffers(commandBuffer, 0, 1
-        , &(vertexBuffers.buffers[0]), &offset);
+        , &(buffer.buffers[0]), &offset);
 
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffers[0], 0//3 * sizeof(uint16_t)
-        , VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, buffer.buffers[0]
+        , bufferInfo.indexMemoryShift, VK_INDEX_TYPE_UINT16);
 
-    vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);
-    vkCmdDrawIndexed(commandBuffer, 3, 1, 6, 0, 0);
+    for(size_t i = 0; i < bufferInfo.objectCount; i++) {
+        ObjectInfo& info = bufferInfo.pObjectInfos[i];
+        vkCmdDrawIndexed(commandBuffer, info.indexCount, 1, info.indexShift, 0, 0);
+    }
 
     vkCmdEndRenderPass(commandBuffer);
     result = vkEndCommandBuffer(commandBuffer);

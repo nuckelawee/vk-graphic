@@ -14,16 +14,19 @@
 namespace vk {
 
 class Engine {
-    AppSetting& setting_;
 
-    LayersAndExtensions *pAttachments_;
-    Instance *pInstance_;
-    Device *pDevice_;
-    Swapchain *pSwapchain_;
-    GraphicPipeline *pPipeline_;
-    DataLoader *pDataLoader_;
-    CommandManager *pCommandManager_;
-    Regulator *pRegulator_;
+    Device device_;
+    Swapchain swapchain_;
+    LayersAndExtensions attachments_;
+    DataLoader dataLoader_;
+    CommandManager commandManager_;
+    Regulator regulator_;
+    GraphicPipeline pipeline_;
+    Instance instance_;
+
+    ObjectInfo pObjects_[2];
+
+    AppSetting& setting_;
 public:
 
     void Init(Surface& surface); 

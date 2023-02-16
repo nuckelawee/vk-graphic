@@ -4,7 +4,7 @@
 
 namespace vk {
 
-enum commandType { GRAPHICS, TRANSFER };
+enum commandType { COMMAND_TYPE_GRAPHICS, COMMAND_TYPE_TRANSFER };
 
 class CommandPool {
 

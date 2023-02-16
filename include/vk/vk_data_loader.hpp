@@ -4,19 +4,28 @@
 
 namespace vk {
 
-enum bufferType { VERTEX, INDEX, UNIFORM };
+enum bufferType { BUFFER_TYPE_VERTEX, BUFFER_TYPE_INDEX, BUFFER_TYPE_UNIFORM
+    , BUFFER_TYPE_COMPLEX };
 
 struct DataInfo {
-    const void *pData;
+    void *pData;
     size_t elementCount;
-    size_t elementSize;
+    VkDeviceSize elementSize;
     bufferType type;
+};
+
+struct ObjectInfo {
+    size_t indexCount;
+    size_t indexShift;
 };
 
 struct BufferInfo {
     bufferType type;
     size_t elementCount;
     size_t bufferIndex;
+    VkDeviceSize indexMemoryShift;
+    ObjectInfo *pObjectInfos = nullptr;
+    size_t objectCount;
 };
 
 struct BufferData {
@@ -31,8 +40,12 @@ class DataLoader {
 
 public:
 
-    BufferInfo LoadData(const Device& device, const DataInfo& info
-        , CommandManager& commandManager, bool useStagingBuffer = true);
+    BufferInfo LoadData(const Device& device, CommandManager& commandManager
+        , const DataInfo& info, bool useStagingBuffer = true);
+
+    BufferInfo LoadComplexData(const Device& device
+        , CommandManager& commandManager, DataInfo **pDataInfos
+        , ObjectInfo *pObjects, size_t objectCount);
 
     const BufferData& Access(bufferType type);
 
@@ -47,6 +60,11 @@ public:
     ~DataLoader() {}
 
 private:
+
+    void ShiftIndexes(DataInfo& info, uint16_t vertexShift);
+
+    VkDeviceSize MergeData(DataInfo **pInfos, unsigned char **pData
+        , ObjectInfo *pObjects, BufferInfo& bufferInfo, size_t objectCount);
 
     void CreateBuffer(const Device& device, VkDeviceSize size
         , VkBufferUsageFlags bufferFlags, VkMemoryPropertyFlags memoryFlags

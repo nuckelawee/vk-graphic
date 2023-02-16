@@ -10,6 +10,8 @@
 namespace vk {
 
 class DataLoader;
+struct BufferInfo;
+
 
 struct CommandInfo {
     commandType type;
