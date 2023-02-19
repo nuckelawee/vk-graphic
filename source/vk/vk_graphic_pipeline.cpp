@@ -2,6 +2,21 @@
 
 namespace vk {
 
+const VkPipelineLayout& GraphicPipeline::AccessLayout() const
+{ return pipelineLayout_; }
+VkPipelineLayout& GraphicPipeline::AccessLayout()
+{ return pipelineLayout_; }
+
+const VkPipeline& GraphicPipeline::Access() const
+{ return pipeline_; }
+VkPipeline& GraphicPipeline::Access()
+{ return pipeline_; }
+
+const VkRenderPass& GraphicPipeline::AccessRenderPass() const
+{ return renderPass_; }
+VkRenderPass& GraphicPipeline::AccessRenderPass()
+{ return renderPass_; }
+
 VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
     , const std::string& code) {
 
@@ -79,7 +94,7 @@ PipelineStates GraphicPipeline::DescribePipelineStates(
     rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizerInfo.lineWidth = 1.0f;
     rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizerInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizerInfo.depthBiasEnable = VK_FALSE;
     rasterizerInfo.depthBiasConstantFactor = 0.0f;
     rasterizerInfo.depthBiasClamp = 0.0f;
@@ -176,6 +191,7 @@ void GraphicPipeline::CreateRenderPass(const VkDevice& device
 void GraphicPipeline::Create(const Device& device
     , const Swapchain& swapchain
     , const std::vector<std::string>& shaderFiles
+    , const DescriptorSet& descriptorSet
     , std::function<PipelineStates(const Swapchain& swapchain
     , void *pUserData)> fillPipelineStates) {
 
@@ -226,8 +242,8 @@ void GraphicPipeline::Create(const Device& device
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pSetLayouts = nullptr;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSet.AccessLayout();
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 

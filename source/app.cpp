@@ -16,7 +16,8 @@ void App::Update() {
     while(notWork) {
         notWork = CheckState();
     }
-    pRenderer_->Update(static_cast<vk::Surface&>(*pWindow_));
+    camera.Update(setting_);
+    pRenderer_->Update(static_cast<vk::Surface&>(*pWindow_), camera);
     setting_.Update();
 }
 

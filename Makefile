@@ -10,7 +10,7 @@ print-%  : ; @echo $* = $($*)
 
 GLSLC = glslc
 
-SRCMODULES := main.cpp app.cpp vk_extensions.cpp vk_instance.cpp vk_device.cpp glfw_window.cpp vk_debug_messenger.cpp thread_pool.cpp blocking_queue.cpp console.cpp statistic.cpp vk_swapchain.cpp vk_engine.cpp vk_graphic_pipeline.cpp vk_pipeline_states.cpp vk_surface.cpp error_manager.cpp file_manager.cpp vk_command_pool.cpp app_setting.cpp vk_vertex.cpp vk_data_loader.cpp vk_command_manager.cpp vk_regulator.cpp
+SRCMODULES := main.cpp app.cpp vk_extensions.cpp vk_instance.cpp vk_device.cpp glfw_window.cpp vk_debug_messenger.cpp thread_pool.cpp blocking_queue.cpp console.cpp time.cpp vk_swapchain.cpp vk_engine.cpp vk_graphic_pipeline.cpp vk_pipeline_states.cpp vk_surface.cpp error_manager.cpp file_manager.cpp vk_command_pool.cpp app_setting.cpp vk_vertex.cpp vk_data_loader.cpp vk_command_manager.cpp vk_regulator.cpp camera.cpp vk_descriptor_set.cpp vk_descriptor_pool.cpp
 
 OBJMODULES = $(SRCMODULES:.cpp=.o)
 

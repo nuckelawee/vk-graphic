@@ -1,62 +1,77 @@
 #include "vk/vk_data_loader.hpp"
+#include "vk/vk_command_manager.hpp"
 
 namespace vk {
 
 BufferInfo DataLoader::LoadData(const Device& device
-    , CommandManager& commandManager, const DataInfo& info
+    , CommandManager& commandManager, const DataInfo& dataInfo
     , bool useStagingBuffer) {
 
-    VkBufferUsageFlags bufferFlags;
-    VkMemoryPropertyFlags memoryFlags;
-    switch(info.type) { 
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    void *pBufferMapped;
+    
+    VkDeviceSize bufferMemorySize = dataInfo.elementSize * dataInfo.elementCount;
+    switch(dataInfo.type) { 
     case BUFFER_TYPE_VERTEX:
-        bufferFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        useStagingBuffer = true;
+        Create(device, buffer, memory, dataInfo.pData, bufferMemorySize
+            , *(commandManager.Access(copyCommands_))
+            , VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
         break;
     case BUFFER_TYPE_INDEX:
-        bufferFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        useStagingBuffer = true;
+        Create(device, buffer, memory, dataInfo.pData, bufferMemorySize
+            , *(commandManager.Access(copyCommands_))
+            , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
         break;
     case BUFFER_TYPE_UNIFORM:
-        //CreateUniformBuffer(device, size);
+        CreateBuffer(device, bufferMemorySize
+        , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+        , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer, memory);
+        break;
     case BUFFER_TYPE_COMPLEX:
         ErrorManager::Validate(WARNING, "Complex buffer must be created "\
             "by a function "\
             "BufferInfo DataLoader::LoadComplexData(const Device& device "\
             ", CommandManager& commandManager, const *pDataInfo infos "\
             ", size_t infoCount, ObjectInfo *pObjects) ", "Data loading");
-        bufferFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-            | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        Create(device, buffer, memory, dataInfo.pData, bufferMemorySize
+            , *(commandManager.Access(copyCommands_))
+            , VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
         break;
     default:
         ErrorManager::Validate(WARNING, "Trying to create unsupported "\
             "buffer", "Data loading");
-        BufferInfo bufferInfo {};
-        return bufferInfo;
+        break;
     }
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-    Create(device, buffer, memory, info.pData, info.elementSize * info.elementCount
-        , *(commandManager.Access(copyCommands_))
-        , bufferFlags, memoryFlags, useStagingBuffer);
+
+    vkMapMemory(device.Access(), memory, 0, bufferMemorySize, 0, &pBufferMapped);
+
+    BufferInfo bufferInfo {};
+    bufferInfo.type = dataInfo.type;
+    bufferInfo.elementCount = dataInfo.elementCount;
+
+    PushData(buffer, memory, bufferInfo, pBufferMapped);
+    return bufferInfo;
+}
+
+void DataLoader::PushData(const VkBuffer& buffer, const VkDeviceMemory& memory
+    , BufferInfo& info, void *pBufferMapped) {
 
     auto pair = data_.find(info.type);
     if(pair == data_.end()) {
         data_.emplace(info.type, BufferData());
         pair = data_.find(info.type);
     }
+    info.bufferIndex = pair->second.infos.size();
     pair->second.buffers.push_back(buffer);
     pair->second.memory.push_back(memory);
-    
-    BufferInfo bufferInfo {};
-    bufferInfo.type = info.type;
-    bufferInfo.elementCount = info.elementCount;
-    bufferInfo.bufferIndex = pair->second.infos.size();
-    pair->second.infos.push_back(bufferInfo);
-    return bufferInfo;
+    pair->second.infos.push_back(info);
+    pair->second.buffersMapped.push_back(pBufferMapped);
 }
 
 void DataLoader::ShiftIndexes(DataInfo& info, uint16_t vertexShift) {
@@ -106,12 +121,14 @@ VkDeviceSize DataLoader::MergeData(DataInfo **pInfos, unsigned char **pData
 }
 
 BufferInfo DataLoader::LoadComplexData(const Device& device
-    , CommandManager& commandManager, DataInfo **pInfos
+    , CommandManager& commandManager, DataInfo **pDataInfos
     , ObjectInfo *pObjects, size_t objectCount) {
 
     unsigned char *pData = nullptr;
+    void *pBufferMapped = nullptr;
     BufferInfo bufferInfo {};
-    VkDeviceSize memoryShift = MergeData(pInfos, &pData, pObjects
+
+    VkDeviceSize memoryShift = MergeData(pDataInfos, &pData, pObjects
         , bufferInfo, objectCount);
 
     VkBufferUsageFlags bufferFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
@@ -125,21 +142,24 @@ BufferInfo DataLoader::LoadComplexData(const Device& device
         , bufferFlags, memoryFlags, true);
 
     delete[] pData;
-
-    auto pair = data_.find(BUFFER_TYPE_COMPLEX);
-    if(pair == data_.end()) {
-        data_.emplace(BUFFER_TYPE_COMPLEX, BufferData());
-        pair = data_.find(BUFFER_TYPE_COMPLEX);
-    }
-    pair->second.buffers.push_back(buffer);
-    pair->second.memory.push_back(memory);
     
-    pair->second.infos.push_back(bufferInfo);
-    bufferInfo.bufferIndex = pair->second.infos.size();
+    bufferInfo.type = BUFFER_TYPE_COMPLEX;
+    PushData(buffer, memory, bufferInfo, pBufferMapped);
+
     return bufferInfo;
 }
 
-const BufferData& DataLoader::Access(bufferType type) {
+const BufferData& DataLoader::Access(bufferType type) const {
+    auto buffers = data_.find(type);
+    if(buffers == data_.end()) {
+        ErrorManager::Validate(WARNING, "This type of buffers doesn't exist"
+            , "Data loader access");
+        return buffers->second;
+    }
+    return buffers->second;
+}
+
+BufferData& DataLoader::Access(bufferType type) {
     auto buffers = data_.find(type);
     if(buffers == data_.end()) {
         ErrorManager::Validate(WARNING, "This type of buffers doesn't exist"
@@ -247,19 +267,6 @@ void DataLoader::CopyBuffer(const Device& device, const VkCommandBuffer& command
         , &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(device.AccessQueues().transfer.queue);
 }
-
-void DataLoader::CreateUniformBuffer(const Device& device, VkBuffer& buffer
-    , VkDeviceMemory& memory, VkDeviceSize size) {
-    VkBufferUsageFlags bufferFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT; 
-    VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    CreateBuffer(device, size, bufferFlags, memoryFlags, buffer, memory);
-}
-
-/*
-void DataLoader::MapMemory(const Device& device, VkDeviceSize size, void *ptr)
-{ vkMapMemory(device.Access(), memory, 0, size, 0, &ptr); }
-*/
 
 void DataLoader::CreateWithStagingBuffer(const Device& device, VkBuffer& buffer
     , VkDeviceMemory& memory, const void *pData

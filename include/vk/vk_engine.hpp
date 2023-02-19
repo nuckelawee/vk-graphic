@@ -11,6 +11,8 @@
 #include "vk_data_loader.hpp"
 #include "vk_command_manager.hpp"
 
+#include "camera.hpp"
+
 namespace vk {
 
 class Engine {
@@ -23,6 +25,8 @@ class Engine {
     Regulator regulator_;
     GraphicPipeline pipeline_;
     Instance instance_;
+    DescriptorSet descriptorSet_;
+    DescriptorPool descriptorPool_;
 
     ObjectInfo pObjects_[2];
 
@@ -30,7 +34,7 @@ class Engine {
 public:
 
     void Init(Surface& surface); 
-    void Update(Surface& surface);
+    void Update(Surface& surface, const Camera& camera);
     void Terminate(Surface& window);
 
 private:

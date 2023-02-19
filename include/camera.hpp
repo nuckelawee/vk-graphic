@@ -1,15 +1,23 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "vk/vk_descriptor_set.hpp"
+
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 
 class Camera {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 projection;
+
+    MvpMatrix camera_;
+    glm::vec3 position_ = glm::vec3(2.0f, 2.0f, 2.0f);
 
 public:
 
-    void Update();
+    void Update(const AppSetting& appSetting);
+
+    const MvpMatrix& Access() const;
+    MvpMatrix& Access();
+
+    Camera() {}
+    ~Camera() {}
 
 };

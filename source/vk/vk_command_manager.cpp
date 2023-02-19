@@ -1,5 +1,4 @@
 #include "vk/vk_command_manager.hpp"
-#include "vk/vk_data_loader.hpp"
 
 namespace vk {
 
@@ -46,7 +45,8 @@ CommandInfo CommandManager::Allocate(const Device& device
 void CommandManager::RecordDrawCommands(const Device& device
     , const Setting& setting, const GraphicPipeline& pipeline
     , const Swapchain& swapchain, DataLoader& dataLoader
-    , const CommandInfo& commandInfo) {
+    , const CommandInfo& commandInfo
+    , const DescriptorSet& descriptorSet) {
 
     const VkCommandBuffer& commandBuffer = *(Access(commandInfo));
 
@@ -86,6 +86,12 @@ void CommandManager::RecordDrawCommands(const Device& device
 
     for(size_t i = 0; i < bufferInfo.objectCount; i++) {
         ObjectInfo& info = bufferInfo.pObjectInfos[i];
+        
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS
+            , pipeline.AccessLayout(), 0, 1
+            , descriptorSet.Access()+setting.CurrentFrame()
+            , 0, nullptr);
+        
         vkCmdDrawIndexed(commandBuffer, info.indexCount, 1, info.indexShift, 0, 0);
     }
 

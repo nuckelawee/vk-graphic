@@ -1,8 +1,25 @@
 #pragma once
 
-#include "vk_command_manager.hpp"
+#include <map>
+
+#include "vk_device.hpp"
+#include "vk_command_pool.hpp"
 
 namespace vk {
+
+class CommandManager;
+
+struct CommandInfo {
+    commandType type;
+    size_t bufferCount;
+    size_t offset = 0;
+
+    CommandInfo() {}
+    CommandInfo(commandType nType, size_t nBufferCount = 0, size_t nOffset = 0) 
+        : type(nType), bufferCount(nBufferCount), offset(nOffset) {}
+};
+
+
 
 enum bufferType { BUFFER_TYPE_VERTEX, BUFFER_TYPE_INDEX, BUFFER_TYPE_UNIFORM
     , BUFFER_TYPE_COMPLEX };
@@ -32,6 +49,7 @@ struct BufferData {
     std::vector<VkBuffer> buffers;
     std::vector<VkDeviceMemory> memory;
     std::vector<BufferInfo> infos; 
+    std::vector<void*> buffersMapped;
 };
 
 class DataLoader {
@@ -47,7 +65,8 @@ public:
         , CommandManager& commandManager, DataInfo **pDataInfos
         , ObjectInfo *pObjects, size_t objectCount);
 
-    const BufferData& Access(bufferType type);
+    const BufferData& Access(bufferType type) const;
+    BufferData& Access(bufferType type);
 
     void Begin(const Device& device, CommandManager& commandManager);
     void Begin(const CommandInfo& copyCommands);
@@ -60,6 +79,9 @@ public:
     ~DataLoader() {}
 
 private:
+
+    void PushData(const VkBuffer& buffer, const VkDeviceMemory& memory
+        , BufferInfo& info, void *pBufferMapped);
 
     void ShiftIndexes(DataInfo& info, uint16_t vertexShift);
 

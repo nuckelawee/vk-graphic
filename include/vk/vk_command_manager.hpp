@@ -1,27 +1,13 @@
 #pragma once
 
 #include "vk/vk_graphic_pipeline.hpp"
-#include "vk_command_pool.hpp"
 #include "vk_regulator.hpp"
+#include "vk_data_loader.hpp"
 
 #include <map>
 #include <vector>
 
 namespace vk {
-
-class DataLoader;
-struct BufferInfo;
-
-
-struct CommandInfo {
-    commandType type;
-    size_t bufferCount;
-    size_t offset = 0;
-
-    CommandInfo() {}
-    CommandInfo(commandType nType, size_t nBufferCount = 0, size_t nOffset = 0) 
-        : type(nType), bufferCount(nBufferCount), offset(nOffset) {}
-};
 
 struct CommandBundle {
     CommandPool commandPool;
@@ -39,7 +25,7 @@ public:
     void RecordDrawCommands(const Device& device
         , const Setting& setting, const GraphicPipeline& pipeline
         , const Swapchain& swapchain, DataLoader& dataLoader
-        , const CommandInfo& commandInfo);
+        , const CommandInfo& commandInfo, const DescriptorSet& descriptorSet);
 
     void Submit(const Device& device, const Setting& setting
         , Regulator& regulator, VkSubmitInfo& submitInfo

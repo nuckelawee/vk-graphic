@@ -3,40 +3,46 @@
 #include <string>
 #include <atomic>
 
-#include "statistic.hpp"
+#include "time.hpp"
 #include "vk/vk_setting.hpp"
 
 enum AppState { APP_WORK, APP_STOP, APP_TERMINATE };
 
 class AppSetting {
 
-    static int frad;
     const std::string confFilepath_ = "../config/setting.conf";
-    const std::string appName = "Vulkan";
+    const std::string appName_ = "Vulkan";
 
     std::atomic<AppState> state_ {APP_WORK};
     std::atomic<uint16_t> windowWidth_ {800};
     std::atomic<uint16_t> windowHeight_ {800};
-    vk::Setting vulkan_setting;
-    Statistic statistic;
+    vk::Setting vulkan_setting_;
+    Time statistic_;
 
 public:
     void Update();
 
-    const std::string& Application() const { return appName; }
+    const std::string& Application() const;
 
     void ChangeState(AppState newState);
     void ChangeWidth(unsigned int newWidth);
     void ChangeHeight(unsigned int newHeight);
 
-    AppState State();
+    AppState State() const;
     unsigned int Width() const;
     unsigned int Height() const;
-    
-    vk::Setting& Vulkan() { return vulkan_setting; }
-    vk::Setting Vulkan() const { return vulkan_setting; }
 
-    //AppSetting(const AppSetting& setting) {}
+    const Time& Statistic() const;
+    Time& Statistic();
+    
+    const vk::Setting& Vulkan() const;
+    vk::Setting& Vulkan();
+
     AppSetting() {}
     ~AppSetting() {}
+
+private:
+    AppSetting(const AppSetting& setting) = delete;
+    AppSetting operator=(const AppSetting& setting) = delete;
+
 };
