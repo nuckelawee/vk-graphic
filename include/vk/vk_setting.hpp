@@ -1,5 +1,8 @@
 #pragma once
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include <string>
 
 namespace vk {
@@ -15,7 +18,6 @@ private:
     uint32_t imageIndex;
 
     VkClearValue clearValue = { 0.2f, 0.2f, 0.2f, 1.0f };
-
 
 public:
 

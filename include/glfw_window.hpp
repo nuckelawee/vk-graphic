@@ -1,8 +1,9 @@
 #pragma once
 
 #include "app_setting.hpp"
-
 #include "vk/vk_surface.hpp"
+#include "input/input_controller.hpp"
+
 
 class GlfwWindow : public vk::Surface {
 
@@ -12,10 +13,12 @@ public:
     virtual VkResult Create(const vk::Instance& instance);
     virtual vk::SurfaceDetails Capabilities(const VkPhysicalDevice& gpu) const;
 
-    void CreateWindow();
+    void CreateWindow(input::Controller& controller);
+
     static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
         , int action, int modes);
     static void FramebufferResize(GLFWwindow *pWindow, int width, int height);
+    static void CursorPos(GLFWwindow *pWindow, float x, float y);
     
     void CloseWindow();
     bool ShouldClosed() const;

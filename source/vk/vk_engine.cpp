@@ -83,7 +83,7 @@ void Engine::Init(Surface& surface) {
         "build/frag_trivial.spv"
     };
 
-    Vertex pVerticesSquare[] = {
+    Vertex2D pVerticesSquare[] = {
         { {  0.3f, -0.3f }, { 1.0f, 0.0f, 0.0f } },
         { {  0.3f,  0.3f }, { 1.0f, 1.0f, 0.0f } },
         { { -0.3f,  0.3f }, { 1.0f, 0.0f, 1.0f } },
@@ -93,7 +93,7 @@ void Engine::Init(Surface& surface) {
         0, 1, 2, 0, 2, 3
     };
 
-    Vertex pVerticesTriangle[] = {
+    Vertex2D pVerticesTriangle[] = {
         { { -0.6f, -0.8f }, { 1.0f, 0.0f, 0.0f } },
         { { -0.4f, -0.4f }, { 0.0f, 1.0f, 0.0f } },
         { { -0.8f, -0.4f }, { 0.0f, 0.0f, 1.0f } },
@@ -105,7 +105,7 @@ void Engine::Init(Surface& surface) {
     DataInfo vertexInfoSquare;
     vertexInfoSquare.pData = pVerticesSquare;
     vertexInfoSquare.elementCount = 4;
-    vertexInfoSquare.elementSize = sizeof(Vertex);
+    vertexInfoSquare.elementSize = sizeof(Vertex2D);
     vertexInfoSquare.type = BUFFER_TYPE_VERTEX;
 
     DataInfo indexInfoSquare;
@@ -117,7 +117,7 @@ void Engine::Init(Surface& surface) {
     DataInfo vertexInfoTriangle;
     vertexInfoTriangle.pData = pVerticesTriangle;
     vertexInfoTriangle.elementCount = 3;
-    vertexInfoTriangle.elementSize = sizeof(Vertex);
+    vertexInfoTriangle.elementSize = sizeof(Vertex2D);
     vertexInfoTriangle.type = BUFFER_TYPE_VERTEX;
 
     DataInfo indexInfoTriangle;

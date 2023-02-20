@@ -9,10 +9,12 @@ void AppSetting::Update() {
 const std::string& AppSetting::Application() const { return appName_; }
 
 void AppSetting::ChangeState(AppState newState) { state_.store(newState); }
+void AppSetting::ChangeContext(ContextType newType) { contextType_.store(newType); }
 void AppSetting::ChangeWidth(unsigned int newWidth) { windowWidth_.store(newWidth); }
 void AppSetting::ChangeHeight(unsigned int newHeight) { windowHeight_.store(newHeight); }
 
 AppState AppSetting::State() const { return state_.load(); }
+ContextType AppSetting::Context() const { return contextType_.load(); }
 unsigned int AppSetting::Width() const { return windowWidth_.load(); }
 unsigned int AppSetting::Height() const { return windowHeight_.load(); }
 

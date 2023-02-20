@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk/vk_engine.hpp"
+#include "input/input_controller.hpp"
 
 #include "glfw_window.hpp"
 #include "camera.hpp"
@@ -14,6 +15,7 @@ class App {
     AppSetting setting_;
 
     vk::Engine *pRenderer_;
+    input::Controller controller;
     Camera camera;
     GlfwWindow *pWindow_;
 

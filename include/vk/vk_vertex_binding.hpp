@@ -8,10 +8,13 @@
 
 namespace vk {
 
-struct Vertex {
+struct Vertex2D {
     glm::vec2 pos;
     glm::vec3 color;
+};
 
+class VertexBinding {
+public:
     static VkVertexInputBindingDescription BindingDescription();
     static std::vector<VkVertexInputAttributeDescription> AttributeDescription();
 };

@@ -1,6 +1,6 @@
 #include "glfw_window.hpp"
 
-void GlfwWindow::CreateWindow() {
+void GlfwWindow::CreateWindow(input::Controller& controller) {
     ErrorManager::Validate(Error(UNSOLVABLE, glfwInit() == 0)
         , "GLFW library failed to init", "GLFW window creation");
 
@@ -13,6 +13,7 @@ void GlfwWindow::CreateWindow() {
     ErrorManager::Validate(Error(UNSOLVABLE, pWindow_ == nullptr)
         , "GLFW window creation failed", "GLFW window creation");
 
+    glfwSetWindowUserPointer(pWindow_, &controller);
     glfwSetKeyCallback(pWindow_, KeyCallback);
     glfwSetFramebufferSizeCallback(pWindow_, FramebufferResize);
     //glfwSwapInterval(1);
@@ -54,9 +55,18 @@ vk::SurfaceDetails GlfwWindow::Capabilities(const VkPhysicalDevice& gpu) const {
 void GlfwWindow::KeyCallback(GLFWwindow *pWindow, int key, int scancode
     , int action, int modes) {
     
-    if(key == GLFW_KEY_ESCAPE) {
-        glfwSetWindowShouldClose(pWindow, GLFW_TRUE);
-    }
+    input::Controller *pController = static_cast<input::Controller*>
+        (glfwGetWindowUserPointer(pWindow));
+
+    pController->KeyInput(key, scancode, action, modes);
+
+}
+
+void GlfwWindow::CursorPos(GLFWwindow *pWindow, float x, float y) {
+    input::Controller *pController = static_cast<input::Controller*>
+        (glfwGetWindowUserPointer(pWindow));
+
+    pController->CursorPosition(x, y);
 }
 
 void GlfwWindow::FramebufferResize(GLFWwindow *pWindow, int width, int height) {
