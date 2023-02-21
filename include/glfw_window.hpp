@@ -18,7 +18,7 @@ public:
     static void KeyCallback(GLFWwindow *pWindow, int key, int scancode
         , int action, int modes);
     static void FramebufferResize(GLFWwindow *pWindow, int width, int height);
-    static void CursorPos(GLFWwindow *pWindow, float x, float y);
+    static void CursorPosCallback(GLFWwindow *pWindow, double x, double y);
     
     void CloseWindow();
     bool ShouldClosed() const;

@@ -6,17 +6,26 @@ void GlfwWindow::CreateWindow(input::Controller& controller) {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    
-    pWindow_ = glfwCreateWindow(setting_.Width(), setting_.Height()
+
+    GLFWmonitor* pPrimary = glfwGetPrimaryMonitor();
+    const GLFWvidmode *pMode = glfwGetVideoMode(pPrimary);
+    setting_.ChangeWidth(pMode->width);
+    setting_.ChangeHeight(pMode->height);
+    pWindow_ = glfwCreateWindow(pMode->width, pMode->height
         , setting_.Application().c_str(), nullptr, nullptr);
+    glfwSetWindowMonitor(pWindow_, pPrimary, 0.0f, 0.0f
+        , pMode->width, pMode->height, pMode->refreshRate);
 
     ErrorManager::Validate(Error(UNSOLVABLE, pWindow_ == nullptr)
         , "GLFW window creation failed", "GLFW window creation");
+    glfwMakeContextCurrent(pWindow_);
+    glfwSetInputMode(pWindow_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSetWindowUserPointer(pWindow_, &controller);
     glfwSetKeyCallback(pWindow_, KeyCallback);
+    glfwSetCursorPosCallback(pWindow_, CursorPosCallback);
     glfwSetFramebufferSizeCallback(pWindow_, FramebufferResize);
-    //glfwSwapInterval(1);
+    glfwSwapInterval(1);
 }
 
 VkResult GlfwWindow::Create(const vk::Instance& instance) {
@@ -54,7 +63,10 @@ vk::SurfaceDetails GlfwWindow::Capabilities(const VkPhysicalDevice& gpu) const {
 
 void GlfwWindow::KeyCallback(GLFWwindow *pWindow, int key, int scancode
     , int action, int modes) {
-    
+
+    if(key == GLFW_KEY_ESCAPE) {
+        glfwSetWindowShouldClose(pWindow, GLFW_TRUE);
+    }
     input::Controller *pController = static_cast<input::Controller*>
         (glfwGetWindowUserPointer(pWindow));
 
@@ -62,11 +74,11 @@ void GlfwWindow::KeyCallback(GLFWwindow *pWindow, int key, int scancode
 
 }
 
-void GlfwWindow::CursorPos(GLFWwindow *pWindow, float x, float y) {
+void GlfwWindow::CursorPosCallback(GLFWwindow *pWindow, double x, double y) {
     input::Controller *pController = static_cast<input::Controller*>
         (glfwGetWindowUserPointer(pWindow));
 
-    pController->CursorPosition(x, y);
+    pController->CursorPosition((float)(x), (float)(y));
 }
 
 void GlfwWindow::FramebufferResize(GLFWwindow *pWindow, int width, int height) {

@@ -1,18 +1,27 @@
 #include "input/input_mouse.hpp"
-#include "input/input_context.hpp"
 
 namespace input {
 
-void Mouse::CursorPosition(Context& context, float x, float y) {
-    deltaXPos_ = x - xPos_;
-    deltaYPos_ = y - yPos_;
+void Mouse::CursorPosition(float x, float y) {
+    xPrevPos_ = xPos_;
+    yPrevPos_ = yPos_;
     xPos_ = x;
     yPos_ = y;  
-//    context.UpdateMousePosition(x, y, deltaXPos_, deltaYPos_);
 }
 
-void Mouse::Button(Context& context, int button, int action, int mods) {
-//    context.UpdateMouseButton(button);
+void Mouse::Button(int button, int action, int mods) {
+
 }
+
+float Mouse::XPosition() const
+{ return xPos_; }
+float Mouse::YPosition() const
+{ return yPos_; }
+
+float Mouse::DeltaXPos() const 
+{ return xPrevPos_ - xPos_; }
+
+float Mouse::DeltaYPos() const
+{ return yPrevPos_ - yPos_; }
 
 } // input

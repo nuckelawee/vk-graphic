@@ -12,7 +12,7 @@ class Context {
 public:
     
     void UpdateMouseButtons(int button);
-    void UpdateMousePosition(float x, float y, float deltaX, float deltaY);
+    void UpdateMousePosition(float deltaX, float deltaY);
 
     void UpdateKeys(const bool *pKeys);
 
@@ -21,6 +21,7 @@ public:
 private:
 
     void MoveCamera(const bool *pKeys);
+    void RotateCamera(float deltaXPos, float deltaYPos);
 
 public:
 
