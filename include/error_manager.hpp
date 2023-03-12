@@ -7,33 +7,40 @@
 #include <string>
 #include <iostream>
 
-enum ErrorType { USER, IMAGE_LOAD, SHADER_LOAD, UNSOLVABLE, WARNING, VULKAN, UNKNOWN };
+#include "file_error.hpp"
+
+enum ErrorType { 
+    ERROR_TYPE_USER, 
+    ERROR_TYPE_UNSOLVABLE, 
+    ERROR_TYPE_WARNING,
+    ERROR_TYPE_VULKAN,
+    ERROR_TYPE_FILE_MANAGER,
+    ERROR_TYPE_UNKNOWN
+};
 
 class Error {
     friend class ErrorManager;
 
-    ErrorType type_ = UNKNOWN;
-    VkResult status_ = VK_ERROR_UNKNOWN;
+    ErrorType type_ = ERROR_TYPE_UNKNOWN;
+    VkResult vulkanStatus_ = VK_ERROR_UNKNOWN;
+    FileResult fileStatus_ = FILE_TGA_ERROR_NO_IMAGE;
     bool statement_ = true;
 
 public:
 
-    VkResult Status() { return status_; }
-    ErrorType Type() { return type_; }
-    bool Statement() { return statement_; }
-
     Error() {}
     Error(ErrorType type) : type_(type) {}
-    Error(VkResult status) : type_(VULKAN), status_(status) {}
     Error(ErrorType type, bool statement) : type_(type), statement_(statement) {}
-    Error(ErrorType type, VkResult status) : type_(type), status_(status) {}
+    Error(ErrorType type, VkResult status) : type_(type), vulkanStatus_(status) {}
+    Error(VkResult result) : type_(ERROR_TYPE_VULKAN), vulkanStatus_(result) {}
+    Error(FileResult result) : type_(ERROR_TYPE_FILE_MANAGER), fileStatus_(result) {}
 };
 
 class ErrorManager {
     
 public:
     
-    static void Validate(Error type, const std::string& messsage = "Unknown error"
+    static void Validate(Error error, const std::string& messsage = "Unknown error"
         , const std::string& additional = "Unknown");
 
 private: 
@@ -42,6 +49,7 @@ private:
         , const std::string& additional);
     static void Warning(const std::string& message = "Unknown error"
         , const std::string& additional = "Unknown");
-    static void VkError(VkResult status, const std::string& additional = "Unknown");
+    static void VulkanError(VkResult status, const std::string& additional = "Unknown");
+    static void FileError(FileResult status, const std::string& additional = "Unknown");
     
 };

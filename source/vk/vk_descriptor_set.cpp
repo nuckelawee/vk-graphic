@@ -5,17 +5,28 @@ namespace vk {
 void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
     , const DataLoader& dataLoader) {
 
-    VkDescriptorSetLayoutBinding layoutBinding {};
-    layoutBinding.binding = 0;
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutBinding uboBinding {};
+    uboBinding.binding = 0;
+    uboBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboBinding.descriptorCount = 1;
+    uboBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding samplerBinding {};
+    samplerBinding.binding = 1;
+    samplerBinding.descriptorCount = 1;
+    samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    samplerBinding.pImmutableSamplers = nullptr;
+
+    size_t layoutBindingCount = 2;
+    VkDescriptorSetLayoutBinding layoutBindings[layoutBindingCount]
+        = { uboBinding, samplerBinding };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &layoutBinding;
+    layoutInfo.bindingCount = layoutBindingCount;
+    layoutInfo.pBindings = layoutBindings;
 
     VkResult result = vkCreateDescriptorSetLayout(device.Access()
         , &layoutInfo, nullptr, &descriptorSetLayout_);
@@ -49,18 +60,30 @@ void DescriptorSet::UpdateDescriptorSet(const Device& device
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(MvpMatrix);
 
-        VkWriteDescriptorSet writeDescriptorSet {};
-        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.dstSet = pDescriptorSets_[i];
-        writeDescriptorSet.dstBinding = 0;
-        writeDescriptorSet.dstArrayElement = 0;
-        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.pBufferInfo = &bufferInfo;
-        writeDescriptorSet.pImageInfo = nullptr;
-        writeDescriptorSet.pTexelBufferView = nullptr; 
+        VkDescriptorImageInfo imageInfo {};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = dataLoader.AccessImage().imageView;
+        imageInfo.sampler = dataLoader.AccessImage().sampler;
 
-        vkUpdateDescriptorSets(device.Access(), 1, &writeDescriptorSet
+        size_t writeCount = 2;
+        VkWriteDescriptorSet writeDescriptorSets[writeCount] = {};
+        writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[0].dstSet = pDescriptorSets_[i];
+        writeDescriptorSets[0].dstBinding = 0;
+        writeDescriptorSets[0].dstArrayElement = 0;
+        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writeDescriptorSets[0].descriptorCount = 1;
+        writeDescriptorSets[0].pBufferInfo = &bufferInfo;
+
+        writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[1].dstSet = pDescriptorSets_[i];
+        writeDescriptorSets[1].dstBinding = 1;
+        writeDescriptorSets[1].dstArrayElement = 0;
+        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[1].descriptorCount = 1;
+        writeDescriptorSets[1].pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(device.Access(), writeCount, writeDescriptorSets
             , 0, nullptr);
     }
 }

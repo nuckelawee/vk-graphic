@@ -3,6 +3,185 @@
 
 namespace vk {
 
+void DataLoader::LoadTexture(const Device& device, CommandManager& commandManager
+    , const char *filepath) {
+
+    Texture texture;
+    FileManager::ReadImageTga(texture, filepath);
+    VkDeviceSize imageSize = texture.width * texture.height * texture.bytesPerPixel;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingMemory;
+
+    CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            , stagingBuffer, stagingMemory);
+
+    void *data;
+    vkMapMemory(device.Access(), stagingMemory, 0, imageSize, 0, &data);
+    memcpy(data, texture.pixels, imageSize);
+    vkUnmapMemory(device.Access(), stagingMemory);
+
+    VkImage image;
+    VkDeviceMemory memory;
+
+    CreateTexture(device, image, memory, texture);
+
+    TransitionImageLayout(device, commandManager, image, texture.format
+            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            , device.AccessQueues().transfer.index.value()
+            , device.AccessQueues().transfer.index.value());
+    commandManager.CopyBufferToImage(device, stagingBuffer, image, texture.width
+            , texture.height);
+    TransitionImageLayout(device, commandManager, image, texture.format
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            , device.AccessQueues().transfer.index.value()
+            , device.AccessQueues().graphic.index.value());
+
+    vkDestroyBuffer(device.Access(), stagingBuffer, nullptr);
+    vkFreeMemory(device.Access(), stagingMemory, nullptr);
+
+    VkImageView imageView = CreateImageView(device, image, texture.format);
+    VkSampler sampler = CreateSampler(device);
+
+    images_.push_back( { image, memory, imageView, sampler } );
+    delete [] texture.pixels;
+}
+
+VkSampler DataLoader::CreateSampler(const Device& device) const {
+    VkPhysicalDeviceProperties properties {};
+    vkGetPhysicalDeviceProperties(device.AccessGpu(), &properties);
+
+    VkSamplerCreateInfo samplerInfo {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    VkSampler sampler;
+    VkResult result = vkCreateSampler(device.Access(), &samplerInfo, nullptr, &sampler);
+    ErrorManager::Validate(result, "Sampler creation");
+    return sampler;
+}
+
+VkImageView DataLoader::CreateImageView(const Device& device, VkImage image
+        , VkFormat format) const {
+
+    VkImageViewCreateInfo imageViewInfo {};
+    imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewInfo.image = image;
+    imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewInfo.format = format;
+    imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewInfo.subresourceRange.baseMipLevel = 0;
+    imageViewInfo.subresourceRange.levelCount = 1;
+    imageViewInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageView;
+    VkResult result = vkCreateImageView(device.Access(), &imageViewInfo, nullptr
+            , &imageView);
+    ErrorManager::Validate(result, "Create image view");
+    return imageView;
+}
+
+void DataLoader::CreateTexture(const Device& device, VkImage& image
+        , VkDeviceMemory& memory, const Texture& texture) const {
+
+    VkImageCreateInfo imageInfo {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = texture.width;
+    imageInfo.extent.height = texture.height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = texture.format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.flags = 0;
+
+    VkResult result = vkCreateImage(device.Access(), &imageInfo, nullptr, &image);
+    ErrorManager::Validate(result, "Image creation\n");
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device.Access(), image, &memRequirements);
+
+    VkMemoryAllocateInfo allocateInfo {};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateInfo.allocationSize = memRequirements.size;
+    allocateInfo.memoryTypeIndex = device.FindMemoryProperties(
+            memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    result = vkAllocateMemory(device.Access(), &allocateInfo, nullptr
+            , &memory);
+
+    ErrorManager::Validate(result, "Image allocation\n");
+    vkBindImageMemory(device.Access(), image, memory, 0);
+
+}
+
+void DataLoader::TransitionImageLayout(const Device& device
+        , CommandManager& commandManager, VkImage image
+        , VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout
+        , uint32_t srcQueueIndex, uint32_t dstQueueIndex) {
+
+    VkCommandBuffer commandBuffer = commandManager.BeginSingleCommand(device);
+
+    VkImageMemoryBarrier barrier {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags srcStage;
+    VkPipelineStageFlags dstStage;
+
+    if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+            && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+
+    vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr
+            , 0, nullptr, 1, &barrier);
+
+    commandManager.EndSingleCommand(device, commandBuffer);
+}
+
 BufferInfo DataLoader::LoadData(const Device& device
     , CommandManager& commandManager, const DataInfo& dataInfo
     , bool useStagingBuffer) {
@@ -32,7 +211,7 @@ BufferInfo DataLoader::LoadData(const Device& device
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer, memory);
         break;
     case BUFFER_TYPE_COMPLEX:
-        ErrorManager::Validate(WARNING, "Complex buffer must be created "\
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Complex buffer must be created "\
             "by a function "\
             "BufferInfo DataLoader::LoadComplexData(const Device& device "\
             ", CommandManager& commandManager, const *pDataInfo infos "\
@@ -44,7 +223,7 @@ BufferInfo DataLoader::LoadData(const Device& device
             , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
         break;
     default:
-        ErrorManager::Validate(WARNING, "Trying to create unsupported "\
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Trying to create unsupported "\
             "buffer", "Data loading");
         break;
     }
@@ -152,7 +331,7 @@ BufferInfo DataLoader::LoadComplexData(const Device& device
 const BufferData& DataLoader::Access(bufferType type) const {
     auto buffers = data_.find(type);
     if(buffers == data_.end()) {
-        ErrorManager::Validate(WARNING, "This type of buffers doesn't exist"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "This type of buffers doesn't exist"
             , "Data loader access");
         return buffers->second;
     }
@@ -162,11 +341,19 @@ const BufferData& DataLoader::Access(bufferType type) const {
 BufferData& DataLoader::Access(bufferType type) {
     auto buffers = data_.find(type);
     if(buffers == data_.end()) {
-        ErrorManager::Validate(WARNING, "This type of buffers doesn't exist"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "This type of buffers doesn't exist"
             , "Data loader access");
         return buffers->second;
     }
     return buffers->second;
+}
+
+const Image& DataLoader::AccessImage() const {
+    return images_[0];
+}
+
+Image& DataLoader::AccessImage() {
+    return images_[0];
 }
 
 void DataLoader::Begin(const Device& device, CommandManager& commandManager) {
@@ -189,6 +376,12 @@ void DataLoader::Destroy(const Device& device) {
             vkFreeMemory(device.Access(), pair.second.memory[i], nullptr);
         }
     }    
+    for(auto& image : images_) {
+        vkDestroySampler(device.Access(), image.sampler, nullptr);
+        vkDestroyImageView(device.Access(), image.imageView, nullptr);
+        vkDestroyImage(device.Access(), image.image, nullptr);
+        vkFreeMemory(device.Access(), image.memory, nullptr);
+    }
 }
 
 void DataLoader::CreateBuffer(const Device& device, VkDeviceSize size
@@ -228,7 +421,7 @@ void DataLoader::AllocateMemory(const Device& device, VkBuffer& buffer
     vkGetBufferMemoryRequirements(device.Access(), buffer, &memoryRequirements);
     int32_t memoryTypeIndex = device.FindMemoryProperties(
         memoryRequirements.memoryTypeBits, propertyFlags); 
-    ErrorManager::Validate(Error(UNSOLVABLE, memoryTypeIndex == -1)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, memoryTypeIndex == -1)
         , "Failed to find suitable memory type"
         , "Vertex buffer memory allocation");
     

@@ -13,39 +13,66 @@ void ErrorManager::Warning(const std::string& message
     std::cerr << "\nWARNING [ " << additional << " ]\n\t---> " << message << "\n\n";
 }
 
-void ErrorManager::Validate(Error type, const std::string& message
+void ErrorManager::Validate(Error error, const std::string& message
     , const std::string& additional) {
     
-    if(type.Statement() == false) {
+    if(error.statement_ == false) {
         return;
     }
 
-    switch(type.Type()) {
-    case USER:
+    switch(error.type_) {
+    case ERROR_TYPE_USER:
         break;
-    case SHADER_LOAD:
-        break;
-    case IMAGE_LOAD:
-        break;
-    case UNSOLVABLE:
+    case ERROR_TYPE_UNSOLVABLE:
         Crash(message, additional);
         break;
-    case WARNING:
+    case ERROR_TYPE_WARNING:
         Warning(message, additional);
         break;
-    case VULKAN:
-        VkError(type.Status(), message);
+    case ERROR_TYPE_VULKAN:
+        VulkanError(error.vulkanStatus_, message);
         break;
-    case UNKNOWN:
+    case ERROR_TYPE_FILE_MANAGER:
+        FileError(error.fileStatus_, message);
+        break;
+    case ERROR_TYPE_UNKNOWN:
         Warning(message, additional);
     default:
         Warning("Error whithout type of ErrorType class", "Error manager");
     } 
 }
 
-void ErrorManager::VkError(VkResult status
-    , const std::string& additional) {
+void ErrorManager::FileError(FileResult status, const std::string& additional) {
+    switch(status) {
+    case FILE_SUCCESS:
+        return;
+    case FILE_ERROR_OPEN_FILE:
+        Warning("Failed to open file", additional);
+        break;
+    case FILE_ERROR_TO_READ:
+        Warning("Failed to read file", additional);
+        break;
+    case FILE_ERROR_MEMORY_ALLOCATION:
+        Warning("Failed to allocate memory", additional);
+        break;
+    case FILE_TGA_ERROR_NO_IMAGE:
+        Warning("File have not image", additional);
+        break;
+    case FILE_TGA_ERROR_NOT_SUPPORT:
+        Warning("This type of tga image not support", additional);
+        break;
+    case FILE_TGA_ERROR_FILE_IS_CORRUPTED:
+        Warning("File is corrupted", additional);
+        break;
+    case FILE_TGA_ERROR_NOT_TGA:
+        Warning("It is not TGA file format", additional);
+        break;
+    default:
+        return;
+    }
+}
 
+void ErrorManager::VulkanError(VkResult status, const std::string& additional) {
     switch(status) {
     case VK_SUCCESS:
         return;

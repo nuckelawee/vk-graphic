@@ -17,7 +17,7 @@ void CommandPool::Create(const Device& device, commandType type) {
             | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         break;
     default:
-        ErrorManager::Validate(UNSOLVABLE, "Trying to create unsupportable "\
+        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "Trying to create unsupportable "\
             "command pool", "Command pool creation");
     }
     

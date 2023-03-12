@@ -17,8 +17,11 @@ struct CommandBundle {
 
 class CommandManager {
     std::map<commandType, CommandBundle> commands_;
+    CommandPool resetPool_;
 
 public:
+
+    void Create(const Device& device);
 
     CommandInfo Allocate(const Device& device, const CommandInfo& info);
 
@@ -41,6 +44,14 @@ public:
 
     CommandManager() {}
     ~CommandManager() {}
+
+    VkCommandBuffer BeginSingleCommand(const Device& device);
+    void EndSingleCommand(const Device& device, VkCommandBuffer commandBuffer);
+
+    void CopyBuffer(const Device& device, VkBuffer source, VkBuffer destination
+        , VkDeviceSize size);
+    void CopyBufferToImage(const Device& device, VkBuffer buffer, VkImage image
+        , uint32_t width, uint32_t height);
 
 private:
 

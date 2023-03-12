@@ -74,15 +74,127 @@ void Engine::Init(Surface& surface) {
 
     swapchain_.Create(device_, surface);
 
+    commandManager_.Create(device_);
     commandManager_.Allocate(device_, CommandInfo(COMMAND_TYPE_GRAPHICS
         , vk::Setting::frames));
 
     const std::vector<std::string> shadersPath = {
-        //"build/vert_vertex_buffer.spv",
-        "build/vert_ubo.spv",
-        "build/frag_trivial.spv"
+        "build/vert_texture.spv",
+        "build/frag_texture.spv"
     };
 
+/*
+    Vertex3D pVerticesCube[] = {
+        { { -0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { { -0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { {  0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { { -0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { { -0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
+    };
+
+    uint16_t pIndicesCube[] = {
+        0, 1, 2,
+        2, 1, 3,
+        2, 3, 4,
+        4, 3, 5,
+        4, 5, 6,
+        6, 5, 7,
+        6, 7, 0,
+        0, 7, 1,
+        6, 0, 2,
+        2, 4, 6,
+        7, 5, 3,
+        7, 3, 1,
+    };
+    DataInfo cubeVertexInfo {};
+    cubeVertexInfo.pData = pVerticesCube;
+    cubeVertexInfo.elementCount = 8;
+    cubeVertexInfo.elementSize = sizeof(Vertex3D);
+    cubeVertexInfo.type = BUFFER_TYPE_VERTEX;
+    
+    DataInfo cubeIndexInfo {};
+    cubeIndexInfo.pData = pIndicesCube;
+    cubeIndexInfo.elementCount = 36;
+    cubeIndexInfo.elementSize = sizeof(uint16_t);
+    cubeIndexInfo.type = BUFFER_TYPE_INDEX;
+
+    DataInfo* pDataObjInfos[] = {
+        &cubeVertexInfo,
+        &cubeIndexInfo,
+    };
+*/
+
+    Vertex3D pVerticesSquare[] = {
+        { {  0.3f, -0.3f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+        { {  0.3f,  0.3f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+        { { -0.3f,  0.3f, 0.0f }, { 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+        { { -0.3f, -0.3f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+    };
+    uint16_t pIndicesSquare[] = {
+        0, 1, 2, 0, 2, 3
+    };
+
+    DataInfo vertexInfoSquare;
+    vertexInfoSquare.pData = pVerticesSquare;
+    vertexInfoSquare.elementCount = 4;
+    vertexInfoSquare.elementSize = sizeof(Vertex3D);
+    vertexInfoSquare.type = BUFFER_TYPE_VERTEX;
+
+    DataInfo indexInfoSquare;
+    indexInfoSquare.pData = pIndicesSquare;
+    indexInfoSquare.elementCount = 6;
+    indexInfoSquare.elementSize = sizeof(uint16_t);
+    indexInfoSquare.type = BUFFER_TYPE_INDEX;
+
+    DataInfo cameraInfo {};
+    cameraInfo.elementCount = 1;
+    cameraInfo.elementSize = sizeof(MvpMatrix);
+    cameraInfo.type = BUFFER_TYPE_UNIFORM;
+
+    DataInfo* pDataObjInfos[] = {
+        &vertexInfoSquare,
+        &indexInfoSquare,
+    };
+    
+    dataLoader_.Begin(device_, commandManager_);
+    dataLoader_.LoadComplexData(device_, commandManager_, pDataObjInfos
+        , pObjects_, 1);
+    for(size_t i = 0; i < vk::Setting::frames; i++) {
+        dataLoader_.LoadData(device_, commandManager_, cameraInfo);
+        dataLoader_.LoadData(device_, commandManager_, cameraInfo);
+    }
+    
+    dataLoader_.LoadTexture(device_, commandManager_, "resources/picture.tga");
+    dataLoader_.End(device_, commandManager_);
+
+    descriptorPool_.Create(device_);
+    descriptorSet_.Create(device_, descriptorPool_, dataLoader_);   
+
+    pipeline_.Create(device_, swapchain_, shadersPath, descriptorSet_);
+    swapchain_.CreateFramebuffers(device_, pipeline_);
+
+    regulator_.Create(device_);
+  
+    setting_.Vulkan().CurrentFrame() = 0;
+}
+
+void Engine::Terminate(Surface& surface) {
+    vkDeviceWaitIdle(device_.Access());
+
+    descriptorSet_.Destroy(device_, descriptorPool_);   
+    descriptorPool_.Destroy(device_);
+    regulator_.Destroy(device_);
+    dataLoader_.Destroy(device_);
+    commandManager_.Destroy(device_);
+    swapchain_.Destroy(device_);
+    pipeline_.Destroy(device_);
+    device_.Destroy();
+    surface.Destroy(instance_);
+}
+/*
     Vertex2D pVerticesSquare[] = {
         { {  0.3f, -0.3f }, { 1.0f, 0.0f, 0.0f } },
         { {  0.3f,  0.3f }, { 1.0f, 1.0f, 0.0f } },
@@ -132,46 +244,6 @@ void Engine::Init(Surface& surface) {
         &indexInfoSquare,
         &indexInfoTriangle
     };
-
-    DataInfo cameraInfo {};
-    cameraInfo.elementCount = 1;
-    cameraInfo.elementSize = sizeof(MvpMatrix);
-    cameraInfo.type = BUFFER_TYPE_UNIFORM;
-    
-    dataLoader_.Begin(device_, commandManager_);
-    dataLoader_.LoadComplexData(device_, commandManager_, dataObjInfos
-        , pObjects_, 2);
-    for(size_t i = 0; i < vk::Setting::frames; i++) {
-        dataLoader_.LoadData(device_, commandManager_, cameraInfo);
-    //    dataLoader_.LoadData(device_, commandManager_, cameraInfo);
-    }
-    dataLoader_.End(device_, commandManager_);
-
-
-    descriptorPool_.Create(device_);
-    descriptorSet_.Create(device_, descriptorPool_, dataLoader_);   
-
-    pipeline_.Create(device_, swapchain_, shadersPath, descriptorSet_);
-    swapchain_.CreateFramebuffers(device_, pipeline_);
-
-    regulator_.Create(device_);
-
-  
-    setting_.Vulkan().CurrentFrame() = 0;
-}
-
-void Engine::Terminate(Surface& surface) {
-    vkDeviceWaitIdle(device_.Access());
-
-    descriptorSet_.Destroy(device_, descriptorPool_);   
-    descriptorPool_.Destroy(device_);
-    regulator_.Destroy(device_);
-    dataLoader_.Destroy(device_);
-    commandManager_.Destroy(device_);
-    swapchain_.Destroy(device_);
-    pipeline_.Destroy(device_);
-    device_.Destroy();
-    surface.Destroy(instance_);
-}
+*/
 
 } //vk

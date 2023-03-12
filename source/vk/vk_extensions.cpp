@@ -129,7 +129,7 @@ VkResult LayersAndExtensions::RequestInstanceLayers(
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
     if(layerCount == 0 || layerCount < layers.size()) {
-        ErrorManager::Validate(WARNING, "Layer not present"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Layer not present"
             , "Instance layer request");
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
@@ -140,7 +140,7 @@ VkResult LayersAndExtensions::RequestInstanceLayers(
     for(size_t i = 0; i < layers.size(); i++) {
         int32_t layerIndex = LayerExist(layers[i], pAvailableLayers, layerCount);
         if(layerIndex == -1) {
-            ErrorManager::Validate(WARNING, "Layer not present"
+            ErrorManager::Validate(ERROR_TYPE_WARNING, "Layer not present"
                 , "Instance layer request");
             return VK_ERROR_LAYER_NOT_PRESENT;
         }
@@ -155,7 +155,7 @@ VkResult LayersAndExtensions::RequestInstanceExtensions(
     uint32_t extensionCount;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     if(extensionCount == 0 || extensionCount < extensions.size()) {
-        ErrorManager::Validate(WARNING, "Extension not present"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
             , "Instance extension request");
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
@@ -168,7 +168,7 @@ VkResult LayersAndExtensions::RequestInstanceExtensions(
         int32_t extensionIndex = ExtensionExist(extensions[i]
             , pAvailableExtensions, extensionCount);
         if(extensionIndex == -1) {
-            ErrorManager::Validate(WARNING, "Extension not present"
+            ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
                 , "Instance extension request");
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
@@ -185,7 +185,7 @@ VkResult LayersAndExtensions::RequestDeviceLayers(
     vkEnumerateDeviceLayerProperties(gpu, &layerCount, nullptr);
     if(layerCount == 0 || layerCount < layers.size()) {
 #ifdef DEBUG
-        std::cerr << "\nWARNING [ Device layer request ]\n---> "\
+        std::cerr << "\nERROR_TYPE_WARNING [ Device layer request ]\n---> "\
             "Layer not present\n\n";
 #endif
         return VK_ERROR_LAYER_NOT_PRESENT;
@@ -198,7 +198,7 @@ VkResult LayersAndExtensions::RequestDeviceLayers(
         int32_t layerIndex = LayerExist(layers[i], pAvailableLayers, layerCount);
         if(layerIndex == -1) {
 #ifdef DEBUG
-            std::cerr << "\nWARNING [ Device layer request ]\n---> "\
+            std::cerr << "\nERROR_TYPE_WARNING [ Device layer request ]\n---> "\
                 "Layer not present\n\n";
 #endif
             return VK_ERROR_LAYER_NOT_PRESENT;
@@ -215,7 +215,7 @@ VkResult LayersAndExtensions::RequestDeviceExtensions(
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, nullptr);
     if(extensionCount == 0 || extensionCount < extensions.size()) {
-        ErrorManager::Validate(WARNING, "Extension not present"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
             , "Device extension request");
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
@@ -228,7 +228,7 @@ VkResult LayersAndExtensions::RequestDeviceExtensions(
         int32_t extensionIndex = ExtensionExist(extensions[i]
             , pAvailableExtensions, extensionCount);
         if(extensionIndex == -1) {
-            ErrorManager::Validate(WARNING, "Extension not present"
+            ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
                 , "Device extension request");
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }

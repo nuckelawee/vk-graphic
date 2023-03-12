@@ -140,11 +140,11 @@ VkResult Device::FindQueueFamilies(QueueFamilies& queueFamilies
         return VK_SUCCESS;
     } 
     if(graphicPriority == 0 || presentPriority == 0 || transferPriority == 0) {
-        ErrorManager::Validate(WARNING, "Not all queue families supported"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Not all queue families supported"
             , GetGpuName(gpu));
         return VK_ERROR_FEATURE_NOT_PRESENT;
     }
-    ErrorManager::Validate(WARNING, "Queue capabilities combined", GetGpuName(gpu));
+    ErrorManager::Validate(ERROR_TYPE_WARNING, "Queue capabilities combined", GetGpuName(gpu));
     return VK_INCOMPLETE;
 }
 
@@ -169,7 +169,7 @@ unsigned int Device::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     const std::vector<const char*> extensions =
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     if(attachments.RequestDeviceExtensions(extensions, gpu) != VK_SUCCESS) {
-        ErrorManager::Validate(WARNING, "GPU extensions doesn't supported"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "GPU extensions doesn't supported"
             , GetGpuName(gpu));
         return 0;
     }
@@ -177,7 +177,7 @@ unsigned int Device::ChooseDefaultGpu(const VkPhysicalDevice& gpu
     SurfaceDetails surfaceCapabilities = surface.Capabilities(gpu);
     if(!(surfaceCapabilities.formats.size() > 0)
         || !(surfaceCapabilities.presentModes.size() > 0)) {
-        ErrorManager::Validate(WARNING, "GPU surface doesn't supported"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "GPU surface doesn't supported"
             , GetGpuName(gpu));
         return 0; 
     }
@@ -198,7 +198,7 @@ void Device::PickGpu(const Instance& instance
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance.Access(), &deviceCount, nullptr);
-    ErrorManager::Validate(Error(UNSOLVABLE, deviceCount == 0), "Failed to find any GPU"
+    ErrorManager::Validate(Error(ERROR_TYPE_WARNING, deviceCount == 0), "Failed to find any GPU"
         , "Pick GPU");
     VkPhysicalDevice pGpus[deviceCount];
     vkEnumeratePhysicalDevices(instance.Access(), &deviceCount, pGpus);
@@ -210,7 +210,7 @@ void Device::PickGpu(const Instance& instance
             gpu_ = pGpus[i];
         }
     }
-    ErrorManager::Validate(Error(UNSOLVABLE, gpu_ == VK_NULL_HANDLE)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, gpu_ == VK_NULL_HANDLE)
         , "suitable GPU not found", "Pick GPU");
 }
 
@@ -267,6 +267,7 @@ void Device::CreateLogicalDevice(const Surface& surface
     }
 
     VkPhysicalDeviceFeatures deviceFeatures {};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
     std::vector<const char*> deviceExtensions = attachments.GetDeviceExtensionNames();
 
     VkDeviceCreateInfo deviceInfo {};

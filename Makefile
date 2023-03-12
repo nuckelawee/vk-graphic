@@ -6,6 +6,7 @@ CXXFLAGS = -Wall -g -std=c++17
 DEBUG = -D DEBUG=true
 LDFLAGS = -lglfw -lvulkan -ldl -lX11 -lXrandr -lXi -I$(INCLUDE_PATH)
 VPATH = source/ : source/vk : source/input :shaders/
+
 print-%  : ; @echo $* = $($*)
 
 GLSLC = glslc
@@ -14,8 +15,8 @@ SRCMODULES := main.cpp app.cpp vk_extensions.cpp vk_instance.cpp vk_device.cpp g
 
 OBJMODULES = $(SRCMODULES:.cpp=.o)
 
-VERTSHADERS := vert_trivial.vert vert_vertex_buffer.vert vert_ubo.vert
-FRAGSHADERS := frag_trivial.frag
+VERTSHADERS := vert_trivial.vert vert_vertex_buffer.vert vert_ubo.vert vert_texture.vert
+FRAGSHADERS := frag_trivial.frag frag_texture.frag
 SPVSHADERS = $(VERTSHADERS:.vert=.spv) $(FRAGSHADERS:.frag=.spv)
 
 Debug: debug shaders

@@ -2,12 +2,16 @@
 
 namespace vk {
 
+void CommandManager::Create(const Device& device) {
+    resetPool_.Create(device, COMMAND_TYPE_TRANSFER);
+}
+
 CommandBundle& CommandManager::FindBundle(const Device& device
     , const CommandInfo& info) {
 
     bool wasPreviouslyAllocated = commands_.find(info.type) != commands_.end();
     if(wasPreviouslyAllocated) {
-        ErrorManager::Validate(WARNING, "This type of commands was previously "\
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "This type of commands was previously "\
             "allocated!", "Command manager allocation");
 
         return commands_.find(info.type)->second;
@@ -40,6 +44,78 @@ CommandInfo CommandManager::Allocate(const Device& device
     newInfo.offset = curBufferCount;
     
     return newInfo;
+}
+
+VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device) {
+    VkCommandBufferAllocateInfo allocateInfo {};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandPool = resetPool_.Access();
+    allocateInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device.Access(), &allocateInfo, &commandBuffer);
+    
+    VkCommandBufferBeginInfo beginInfo {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    return commandBuffer;
+}
+
+void CommandManager::EndSingleCommand(const Device& device
+    , VkCommandBuffer commandBuffer) {
+
+    vkEndCommandBuffer(commandBuffer);
+    
+    VkSubmitInfo submitInfo {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(device.AccessQueues().transfer.queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(device.AccessQueues().transfer.queue);
+
+    vkFreeCommandBuffers(device.Access(), resetPool_.Access(), 1, &commandBuffer);
+}
+
+void CommandManager::CopyBuffer(const Device& device, VkBuffer source
+    , VkBuffer destination, VkDeviceSize size) {
+
+    VkCommandBuffer commandBuffer = BeginSingleCommand(device);
+
+    VkBufferCopy copy {};
+    copy.size = size;
+    vkCmdCopyBuffer(commandBuffer, source, destination, 1, &copy);
+
+    EndSingleCommand(device, commandBuffer);
+}
+
+void CommandManager::CopyBufferToImage(const Device& device, VkBuffer buffer
+    , VkImage image, uint32_t width, uint32_t height) {
+
+    VkCommandBuffer commandBuffer = BeginSingleCommand(device); 
+
+    VkBufferImageCopy region {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = { 0, 0 };
+    region.imageExtent = {
+        width,
+        height,
+        1
+    };
+    vkCmdCopyBufferToImage(commandBuffer, buffer, image
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    EndSingleCommand(device, commandBuffer);
 }
 
 void CommandManager::RecordDrawCommands(const Device& device
@@ -120,7 +196,7 @@ void CommandManager::Submit(const Device& device, const Setting& setting
 
 const VkCommandBuffer* CommandManager::Access(const CommandInfo& info) const {
     if(commands_.find(info.type) == commands_.end()) {
-        ErrorManager::Validate(UNSOLVABLE, "This type of command buffers "\
+        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "This type of command buffers "\
             "weren't allocated", "Command manager access");
         return nullptr;
     }
@@ -129,7 +205,7 @@ const VkCommandBuffer* CommandManager::Access(const CommandInfo& info) const {
 
 const CommandBundle& CommandManager::Access(const commandType type) const {
     if(commands_.find(type) == commands_.end()) {
-        ErrorManager::Validate(UNSOLVABLE, "This type of command buffers "\
+        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "This type of command buffers "\
             "weren't allocated", "Command manager access");
         return commands_.end()->second;
     }
@@ -158,6 +234,7 @@ void CommandManager::Destroy(const Device& device) {
     for(auto& pair : commands_) {
         pair.second.commandPool.Destroy(device);
     }
+    resetPool_.Destroy(device);
 }
 
 } //vk

@@ -28,8 +28,11 @@ void App::Run() {
         Console::Input(appSetting_);
     }));
 */
-    controller.SwitchContext(&camera, CONTEXT_TYPE_CAMERA);
     Init();
+    glfwPollEvents();
+    controller.Update();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    controller.SwitchContext(&camera, CONTEXT_TYPE_CAMERA);
     while(!pWindow_->ShouldClosed()) {
         Update(); 
         glfwPollEvents();

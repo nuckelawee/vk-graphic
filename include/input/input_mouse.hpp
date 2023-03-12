@@ -4,11 +4,11 @@ namespace input {
 
 class Mouse {
 
-    float xPos_;
-    float yPos_;
+    float xPos_ = 0.0f;
+    float yPos_ = 0.0f;
 
-    float xPrevPos_;
-    float yPrevPos_;
+    float xPrevPos_ = 0.0f;
+    float yPrevPos_ = 0.0f;
 
     //float deltaXPos_;
     //float deltaYPos_;

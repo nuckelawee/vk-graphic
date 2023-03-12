@@ -4,6 +4,7 @@
 
 #include "vk_device.hpp"
 #include "vk_command_pool.hpp"
+#include "file_manager.hpp"
 
 namespace vk {
 
@@ -18,8 +19,6 @@ struct CommandInfo {
     CommandInfo(commandType nType, size_t nBufferCount = 0, size_t nOffset = 0) 
         : type(nType), bufferCount(nBufferCount), offset(nOffset) {}
 };
-
-
 
 enum bufferType { BUFFER_TYPE_VERTEX, BUFFER_TYPE_INDEX, BUFFER_TYPE_UNIFORM
     , BUFFER_TYPE_COMPLEX };
@@ -52,11 +51,22 @@ struct BufferData {
     std::vector<void*> buffersMapped;
 };
 
+struct Image {
+    VkImage image;
+    VkDeviceMemory memory;
+    VkImageView imageView;
+    VkSampler sampler;
+};
+
 class DataLoader {
     std::map<bufferType, BufferData> data_;
+    std::vector<Image> images_; 
     CommandInfo copyCommands_;
 
 public:
+
+    void LoadTexture(const Device& device, CommandManager& commandManager
+        , const char* filepath);
 
     BufferInfo LoadData(const Device& device, CommandManager& commandManager
         , const DataInfo& info, bool useStagingBuffer = true);
@@ -67,6 +77,9 @@ public:
 
     const BufferData& Access(bufferType type) const;
     BufferData& Access(bufferType type);
+    
+    const Image& AccessImage() const;
+    Image& AccessImage();
 
     void Begin(const Device& device, CommandManager& commandManager);
     void Begin(const CommandInfo& copyCommands);
@@ -79,6 +92,18 @@ public:
     ~DataLoader() {}
 
 private:
+
+    VkSampler CreateSampler(const Device& device) const;
+    
+    VkImageView CreateImageView(const Device& device, VkImage image
+        , VkFormat format) const;
+
+    void CreateTexture(const Device& device, VkImage& image, VkDeviceMemory& memory
+        , const Texture& texture) const;
+
+    void TransitionImageLayout(const Device& device, CommandManager& commandManager
+        , VkImage image, VkFormat format, VkImageLayout oldLayout
+        , VkImageLayout newLayout, uint32_t srcQueueIndex, uint32_t dstQueueIndex);
 
     void PushData(const VkBuffer& buffer, const VkDeviceMemory& memory
         , BufferInfo& info, void *pBufferMapped);

@@ -48,7 +48,7 @@ void Instance::IncludeDefaultLayersAndExtensions(
 
     glfwExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     VkResult result = attachments.RequestInstanceExtensions(glfwExtensions);
-    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
         , "GLFW extensions doesn't support", "Include layers and extensions");
 
 #ifdef DEBUG
@@ -56,7 +56,7 @@ void Instance::IncludeDefaultLayersAndExtensions(
     { "VK_LAYER_KHRONOS_validation" };
 
     result = attachments.RequestInstanceLayers(validationLayer);
-    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
         , "Validation layer doesn't active", "Include layers and extensions");
 #endif
 }

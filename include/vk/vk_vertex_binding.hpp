@@ -8,9 +8,10 @@
 
 namespace vk {
 
-struct Vertex2D {
-    glm::vec2 pos;
+struct Vertex3D {
+    glm::vec3 pos;
     glm::vec3 color;
+    glm::vec2 texPos;
 };
 
 class VertexBinding {

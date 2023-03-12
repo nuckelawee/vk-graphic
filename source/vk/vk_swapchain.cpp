@@ -29,7 +29,7 @@ VkExtent2D Swapchain::ChooseSuitableExtent(const Device& device
     VkSurfaceCapabilitiesKHR capabilities = surface.Capabilities(
         device.AccessGpu()).capabilities;
     if(capabilities.currentExtent.width == UINT32_MAX) {
-        ErrorManager::Validate(WARNING, "Screen coordinates don't correspond "\
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Screen coordinates don't correspond "\
             "to pixels", "Extent choosing");
         return capabilities.currentExtent;
     }
@@ -55,7 +55,7 @@ void Swapchain::Create(const Device& device, Surface& surface) {
     int32_t index;
 
     index = ChooseSuitableFormat(surfaceCapabilities.formats);
-    ErrorManager::Validate(Error(UNSOLVABLE, index == -1)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, index == -1)
         , "Failed to find suitable surface format"
         , "Swapchain creation");
     surfaceFormat = surfaceCapabilities.formats[index];
@@ -63,7 +63,7 @@ void Swapchain::Create(const Device& device, Surface& surface) {
     index = ChooseSuitablePresent(
         surfaceCapabilities.presentModes);
     if(index == -1) {
-        ErrorManager::Validate(WARNING, "Failed to find suitable present mode"
+        ErrorManager::Validate(ERROR_TYPE_WARNING, "Failed to find suitable present mode"
             , "Swapchain creation");
         index = 0;
     }
@@ -104,7 +104,7 @@ void Swapchain::Create(const Device& device, Surface& surface) {
     
     VkResult result = vkCreateSwapchainKHR(device.Access(), &swapchainInfo
         , nullptr, &swapchain_);
-    ErrorManager::Validate(Error(UNSOLVABLE, result != VK_SUCCESS)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
         , "Failed to create swapchain", "Swapchain creation");
     
     CreateImages(device);

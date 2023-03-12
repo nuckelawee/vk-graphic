@@ -1,7 +1,7 @@
 #include "glfw_window.hpp"
 
 void GlfwWindow::CreateWindow(input::Controller& controller) {
-    ErrorManager::Validate(Error(UNSOLVABLE, glfwInit() == 0)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, glfwInit() == 0)
         , "GLFW library failed to init", "GLFW window creation");
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -16,7 +16,7 @@ void GlfwWindow::CreateWindow(input::Controller& controller) {
     glfwSetWindowMonitor(pWindow_, pPrimary, 0.0f, 0.0f
         , pMode->width, pMode->height, pMode->refreshRate);
 
-    ErrorManager::Validate(Error(UNSOLVABLE, pWindow_ == nullptr)
+    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, pWindow_ == nullptr)
         , "GLFW window creation failed", "GLFW window creation");
     glfwMakeContextCurrent(pWindow_);
     glfwSetInputMode(pWindow_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
