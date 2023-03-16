@@ -9,7 +9,8 @@ void CommandPool::Create(const Device& device, commandType type) {
     switch(type_) {
     case COMMAND_TYPE_GRAPHICS:
         queueFamilyIndex = device.AccessQueues().graphic.index.value();
-        flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+            | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         break;
     case COMMAND_TYPE_TRANSFER:
         queueFamilyIndex = device.AccessQueues().transfer.index.value();

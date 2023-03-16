@@ -3,7 +3,8 @@
 namespace vk {
 
 void CommandManager::Create(const Device& device) {
-    resetPool_.Create(device, COMMAND_TYPE_TRANSFER);
+    resetGraphicQueuePool_.Create(device, COMMAND_TYPE_GRAPHICS);
+    resetTransferQueuePool_.Create(device, COMMAND_TYPE_TRANSFER);
 }
 
 CommandBundle& CommandManager::FindBundle(const Device& device
@@ -46,12 +47,19 @@ CommandInfo CommandManager::Allocate(const Device& device
     return newInfo;
 }
 
-VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device) {
+VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device
+    , commandType poolType) {
+
     VkCommandBufferAllocateInfo allocateInfo {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocateInfo.commandPool = resetPool_.Access();
     allocateInfo.commandBufferCount = 1;
+
+    if(poolType == COMMAND_TYPE_GRAPHICS) {
+        allocateInfo.commandPool = resetGraphicQueuePool_.Access();
+    } else {
+        allocateInfo.commandPool = resetTransferQueuePool_.Access();
+    }
 
     VkCommandBuffer commandBuffer;
     vkAllocateCommandBuffers(device.Access(), &allocateInfo, &commandBuffer);
@@ -65,7 +73,7 @@ VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device) {
 }
 
 void CommandManager::EndSingleCommand(const Device& device
-    , VkCommandBuffer commandBuffer) {
+    , VkCommandBuffer commandBuffer, commandType poolType) {
 
     vkEndCommandBuffer(commandBuffer);
     
@@ -74,28 +82,37 @@ void CommandManager::EndSingleCommand(const Device& device
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(device.AccessQueues().transfer.queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(device.AccessQueues().transfer.queue);
+    VkQueue queue;
+    CommandPool pool;
+    if(poolType == COMMAND_TYPE_GRAPHICS) {
+        queue = device.AccessQueues().graphic.queue;
+        pool = resetGraphicQueuePool_;
+    } else {
+        queue = device.AccessQueues().transfer.queue;
+        pool = resetTransferQueuePool_;
+    }
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
 
-    vkFreeCommandBuffers(device.Access(), resetPool_.Access(), 1, &commandBuffer);
+    vkFreeCommandBuffers(device.Access(), pool.Access(), 1, &commandBuffer);
 }
 
 void CommandManager::CopyBuffer(const Device& device, VkBuffer source
     , VkBuffer destination, VkDeviceSize size) {
 
-    VkCommandBuffer commandBuffer = BeginSingleCommand(device);
+    VkCommandBuffer commandBuffer = BeginSingleCommand(device, COMMAND_TYPE_TRANSFER);
 
     VkBufferCopy copy {};
     copy.size = size;
     vkCmdCopyBuffer(commandBuffer, source, destination, 1, &copy);
 
-    EndSingleCommand(device, commandBuffer);
+    EndSingleCommand(device, commandBuffer, COMMAND_TYPE_TRANSFER);
 }
 
 void CommandManager::CopyBufferToImage(const Device& device, VkBuffer buffer
     , VkImage image, uint32_t width, uint32_t height) {
 
-    VkCommandBuffer commandBuffer = BeginSingleCommand(device); 
+    VkCommandBuffer commandBuffer = BeginSingleCommand(device, COMMAND_TYPE_TRANSFER); 
 
     VkBufferImageCopy region {};
     region.bufferOffset = 0;
@@ -115,7 +132,7 @@ void CommandManager::CopyBufferToImage(const Device& device, VkBuffer buffer
     vkCmdCopyBufferToImage(commandBuffer, buffer, image
         , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-    EndSingleCommand(device, commandBuffer);
+    EndSingleCommand(device, commandBuffer, COMMAND_TYPE_TRANSFER);
 }
 
 void CommandManager::RecordDrawCommands(const Device& device
@@ -234,7 +251,8 @@ void CommandManager::Destroy(const Device& device) {
     for(auto& pair : commands_) {
         pair.second.commandPool.Destroy(device);
     }
-    resetPool_.Destroy(device);
+    resetGraphicQueuePool_.Destroy(device);
+    resetTransferQueuePool_.Destroy(device);
 }
 
 } //vk

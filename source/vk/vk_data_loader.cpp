@@ -1,7 +1,34 @@
 #include "vk/vk_data_loader.hpp"
 #include "vk/vk_command_manager.hpp"
+#include "vk/vk_swapchain.hpp"
 
 namespace vk {
+
+void DataLoader::CreateDepthImage(const Device& device
+    , const Swapchain& swapchain, CommandManager& commandManager) {
+
+    VkFormat depthFormat = device.FindSupportedFormat(
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT
+        , VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL
+        , VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    Texture texture;
+    texture.format = depthFormat;
+    texture.width = swapchain.AccessExtent().width;
+    texture.height = swapchain.AccessExtent().height;
+
+    CreateTexture(device, depthImage_.image, depthImage_.memory, texture
+        , VK_IMAGE_TILING_OPTIMAL
+        , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+        , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    depthImage_.imageView = CreateImageView(device, depthImage_.image
+        , depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+/*
+    TransitionImageLayout(device, commandManager, depthImage_.image, depthFormat
+        , VK_IMAGE_LAYOUT_UNDEFINED
+        , VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+*/
+}
 
 void DataLoader::LoadTexture(const Device& device, CommandManager& commandManager
     , const char *filepath) {
@@ -25,23 +52,22 @@ void DataLoader::LoadTexture(const Device& device, CommandManager& commandManage
     VkImage image;
     VkDeviceMemory memory;
 
-    CreateTexture(device, image, memory, texture);
+    CreateTexture(device, image, memory, texture, VK_IMAGE_TILING_OPTIMAL
+        , VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+        , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     TransitionImageLayout(device, commandManager, image, texture.format
-            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-            , device.AccessQueues().transfer.index.value()
-            , device.AccessQueues().transfer.index.value());
+            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     commandManager.CopyBufferToImage(device, stagingBuffer, image, texture.width
             , texture.height);
     TransitionImageLayout(device, commandManager, image, texture.format
-            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-            , device.AccessQueues().transfer.index.value()
-            , device.AccessQueues().graphic.index.value());
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(device.Access(), stagingBuffer, nullptr);
     vkFreeMemory(device.Access(), stagingMemory, nullptr);
 
-    VkImageView imageView = CreateImageView(device, image, texture.format);
+    VkImageView imageView = CreateImageView(device, image, texture.format
+        , VK_IMAGE_ASPECT_COLOR_BIT);
     VkSampler sampler = CreateSampler(device);
 
     images_.push_back( { image, memory, imageView, sampler } );
@@ -76,14 +102,14 @@ VkSampler DataLoader::CreateSampler(const Device& device) const {
 }
 
 VkImageView DataLoader::CreateImageView(const Device& device, VkImage image
-        , VkFormat format) const {
+    , VkFormat format, VkImageAspectFlags aspectFlags) const {
 
     VkImageViewCreateInfo imageViewInfo {};
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     imageViewInfo.image = image;
     imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewInfo.format = format;
-    imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewInfo.subresourceRange.aspectMask = aspectFlags;
     imageViewInfo.subresourceRange.baseMipLevel = 0;
     imageViewInfo.subresourceRange.levelCount = 1;
     imageViewInfo.subresourceRange.baseArrayLayer = 0;
@@ -97,7 +123,8 @@ VkImageView DataLoader::CreateImageView(const Device& device, VkImage image
 }
 
 void DataLoader::CreateTexture(const Device& device, VkImage& image
-        , VkDeviceMemory& memory, const Texture& texture) const {
+    , VkDeviceMemory& memory, const Texture& texture, VkImageTiling tiling
+    , VkImageUsageFlags usage, VkMemoryPropertyFlags properties) const {
 
     VkImageCreateInfo imageInfo {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -108,12 +135,11 @@ void DataLoader::CreateTexture(const Device& device, VkImage& image
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
     imageInfo.format = texture.format;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.usage = usage;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.flags = 0;
 
     VkResult result = vkCreateImage(device.Access(), &imageInfo, nullptr, &image);
     ErrorManager::Validate(result, "Image creation\n");
@@ -125,7 +151,7 @@ void DataLoader::CreateTexture(const Device& device, VkImage& image
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memRequirements.size;
     allocateInfo.memoryTypeIndex = device.FindMemoryProperties(
-            memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            memRequirements.memoryTypeBits, properties);
 
     result = vkAllocateMemory(device.Access(), &allocateInfo, nullptr
             , &memory);
@@ -137,10 +163,10 @@ void DataLoader::CreateTexture(const Device& device, VkImage& image
 
 void DataLoader::TransitionImageLayout(const Device& device
         , CommandManager& commandManager, VkImage image
-        , VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout
-        , uint32_t srcQueueIndex, uint32_t dstQueueIndex) {
+        , VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
 
-    VkCommandBuffer commandBuffer = commandManager.BeginSingleCommand(device);
+    VkCommandBuffer commandBuffer = commandManager.BeginSingleCommand(device
+        , COMMAND_TYPE_GRAPHICS);
 
     VkImageMemoryBarrier barrier {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -159,6 +185,15 @@ void DataLoader::TransitionImageLayout(const Device& device
     VkPipelineStageFlags dstStage;
 
     if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+        && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+            | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
             && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
 
         barrier.srcAccessMask = 0;
@@ -174,12 +209,15 @@ void DataLoader::TransitionImageLayout(const Device& device
 
         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "Failed to change image layout"
+            , "Transition image layout");
     }
 
     vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr
             , 0, nullptr, 1, &barrier);
 
-    commandManager.EndSingleCommand(device, commandBuffer);
+    commandManager.EndSingleCommand(device, commandBuffer, COMMAND_TYPE_GRAPHICS);
 }
 
 BufferInfo DataLoader::LoadData(const Device& device
@@ -354,6 +392,14 @@ const Image& DataLoader::AccessImage() const {
 
 Image& DataLoader::AccessImage() {
     return images_[0];
+}
+
+const Image& DataLoader::AccessDepthImage() const {
+    return depthImage_;
+}
+
+Image& DataLoader::AccessDepthImage() {
+    return depthImage_;
 }
 
 void DataLoader::Begin(const Device& device, CommandManager& commandManager) {

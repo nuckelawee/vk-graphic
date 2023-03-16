@@ -9,6 +9,7 @@
 namespace vk {
 
 class CommandManager;
+class Swapchain;
 
 struct CommandInfo {
     commandType type;
@@ -63,7 +64,12 @@ class DataLoader {
     std::vector<Image> images_; 
     CommandInfo copyCommands_;
 
+    Image depthImage_;
+
 public:
+
+    void CreateDepthImage(const Device& device, const Swapchain& swapchain
+        , CommandManager& commandManager);
 
     void LoadTexture(const Device& device, CommandManager& commandManager
         , const char* filepath);
@@ -81,6 +87,9 @@ public:
     const Image& AccessImage() const;
     Image& AccessImage();
 
+    const Image& AccessDepthImage() const;
+    Image& AccessDepthImage();
+
     void Begin(const Device& device, CommandManager& commandManager);
     void Begin(const CommandInfo& copyCommands);
     
@@ -96,14 +105,15 @@ private:
     VkSampler CreateSampler(const Device& device) const;
     
     VkImageView CreateImageView(const Device& device, VkImage image
-        , VkFormat format) const;
+        , VkFormat format, VkImageAspectFlags aspectFlags) const;
 
     void CreateTexture(const Device& device, VkImage& image, VkDeviceMemory& memory
-        , const Texture& texture) const;
+        , const Texture& texture, VkImageTiling tiling
+        , VkImageUsageFlags usage, VkMemoryPropertyFlags properties) const;
 
     void TransitionImageLayout(const Device& device, CommandManager& commandManager
         , VkImage image, VkFormat format, VkImageLayout oldLayout
-        , VkImageLayout newLayout, uint32_t srcQueueIndex, uint32_t dstQueueIndex);
+        , VkImageLayout newLayout);
 
     void PushData(const VkBuffer& buffer, const VkDeviceMemory& memory
         , BufferInfo& info, void *pBufferMapped);

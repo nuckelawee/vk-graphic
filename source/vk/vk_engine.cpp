@@ -6,7 +6,7 @@ void Engine::Acquire(Surface& surface) {
     VkResult result = regulator_.BeginRender(device_, swapchain_
         , setting_.Vulkan());
     if(result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_);
+        swapchain_.Recreate(device_, surface, pipeline_, dataLoader_);
     } else {
         ErrorManager::Validate(result, "Image acquiring");
     }
@@ -22,7 +22,7 @@ void Engine::Present(Surface& surface, VkPresentInfoKHR& presentInfo) {
         , &presentInfo);
 
     if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_);
+        swapchain_.Recreate(device_, surface, pipeline_, dataLoader_);
     } else {
         ErrorManager::Validate(result, "Presentation");
     }
@@ -83,16 +83,15 @@ void Engine::Init(Surface& surface) {
         "build/frag_texture.spv"
     };
 
-/*
     Vertex3D pVerticesCube[] = {
-        { { -0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { { -0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { { -0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
-        { { -0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f } },
+        { { -0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
+        { { -0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { {  0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+        { {  0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
+        { {  0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+        { {  0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { -0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
+        { { -0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
     };
 
     uint16_t pIndicesCube[] = {
@@ -121,17 +120,11 @@ void Engine::Init(Surface& surface) {
     cubeIndexInfo.elementSize = sizeof(uint16_t);
     cubeIndexInfo.type = BUFFER_TYPE_INDEX;
 
-    DataInfo* pDataObjInfos[] = {
-        &cubeVertexInfo,
-        &cubeIndexInfo,
-    };
-*/
-
     Vertex3D pVerticesSquare[] = {
-        { {  0.3f, -0.3f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-        { {  0.3f,  0.3f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-        { { -0.3f,  0.3f, 0.0f }, { 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-        { { -0.3f, -0.3f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+        { {  0.3f, -0.3f, -3.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+        { {  0.3f,  0.3f, -3.0f }, { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+        { { -0.3f,  0.3f, -3.0f }, { 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+        { { -0.3f, -0.3f, -3.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
     };
     uint16_t pIndicesSquare[] = {
         0, 1, 2, 0, 2, 3
@@ -149,32 +142,35 @@ void Engine::Init(Surface& surface) {
     indexInfoSquare.elementSize = sizeof(uint16_t);
     indexInfoSquare.type = BUFFER_TYPE_INDEX;
 
+    DataInfo* pDataObjInfos[] = {
+        &cubeVertexInfo,
+        &vertexInfoSquare,
+        &cubeIndexInfo,
+        &indexInfoSquare,
+    };
+
     DataInfo cameraInfo {};
     cameraInfo.elementCount = 1;
     cameraInfo.elementSize = sizeof(MvpMatrix);
     cameraInfo.type = BUFFER_TYPE_UNIFORM;
 
-    DataInfo* pDataObjInfos[] = {
-        &vertexInfoSquare,
-        &indexInfoSquare,
-    };
-    
     dataLoader_.Begin(device_, commandManager_);
     dataLoader_.LoadComplexData(device_, commandManager_, pDataObjInfos
-        , pObjects_, 1);
+        , pObjects_, 2);
     for(size_t i = 0; i < vk::Setting::frames; i++) {
         dataLoader_.LoadData(device_, commandManager_, cameraInfo);
         dataLoader_.LoadData(device_, commandManager_, cameraInfo);
     }
     
     dataLoader_.LoadTexture(device_, commandManager_, "resources/picture.tga");
+    dataLoader_.CreateDepthImage(device_, swapchain_, commandManager_);
     dataLoader_.End(device_, commandManager_);
 
     descriptorPool_.Create(device_);
     descriptorSet_.Create(device_, descriptorPool_, dataLoader_);   
 
     pipeline_.Create(device_, swapchain_, shadersPath, descriptorSet_);
-    swapchain_.CreateFramebuffers(device_, pipeline_);
+    swapchain_.CreateFramebuffers(device_, pipeline_, dataLoader_);
 
     regulator_.Create(device_);
   
@@ -189,7 +185,7 @@ void Engine::Terminate(Surface& surface) {
     regulator_.Destroy(device_);
     dataLoader_.Destroy(device_);
     commandManager_.Destroy(device_);
-    swapchain_.Destroy(device_);
+    swapchain_.CleanUp(device_, dataLoader_);
     pipeline_.Destroy(device_);
     device_.Destroy();
     surface.Destroy(instance_);

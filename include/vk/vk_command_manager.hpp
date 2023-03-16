@@ -17,7 +17,8 @@ struct CommandBundle {
 
 class CommandManager {
     std::map<commandType, CommandBundle> commands_;
-    CommandPool resetPool_;
+    CommandPool resetTransferQueuePool_;
+    CommandPool resetGraphicQueuePool_;
 
 public:
 
@@ -45,8 +46,9 @@ public:
     CommandManager() {}
     ~CommandManager() {}
 
-    VkCommandBuffer BeginSingleCommand(const Device& device);
-    void EndSingleCommand(const Device& device, VkCommandBuffer commandBuffer);
+    VkCommandBuffer BeginSingleCommand(const Device& device, commandType type);
+    void EndSingleCommand(const Device& device, VkCommandBuffer commandBuffer
+        , commandType type);
 
     void CopyBuffer(const Device& device, VkBuffer source, VkBuffer destination
         , VkDeviceSize size);

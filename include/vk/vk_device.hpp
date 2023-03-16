@@ -75,6 +75,9 @@ public:
     VkDevice Access() const { return device_; }
     QueueFamilies AccessQueues() const { return queues_; }
 
+    VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
+        VkImageTiling tiling, VkFormatFeatureFlags features) const;
+
     void SetQueueFamilies(const Surface& surface
         , std::function<VkResult(QueueFamilies& queueFamilies
         , const VkPhysicalDevice& gpu

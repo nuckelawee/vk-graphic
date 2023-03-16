@@ -143,15 +143,20 @@ void Swapchain::CreateImageViews(const Device& device) {
 }
 
 void Swapchain::CreateFramebuffers(const Device& device
-    , const GraphicPipeline& pipeline) {
+    , const GraphicPipeline& pipeline, const DataLoader& dataLoader) {
 
     framebuffers_.resize(imageViews_.size());
     for(size_t i = 0; i < framebuffers_.size(); i++) {
+        uint32_t attachmentCount = 2;
+        VkImageView attachments[attachmentCount]
+            = { imageViews_[i], dataLoader.AccessDepthImage().imageView };
+
+
         VkFramebufferCreateInfo framebufferInfo {};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = pipeline.AccessRenderPass();
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &(imageViews_[i]);
+        framebufferInfo.attachmentCount = attachmentCount;
+        framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = extent_.width;
         framebufferInfo.height = extent_.height;
         framebufferInfo.layers = 1;
@@ -162,7 +167,7 @@ void Swapchain::CreateFramebuffers(const Device& device
 }
 
 void Swapchain::Recreate(const Device& device, Surface& surface
-    , const GraphicPipeline& pipeline) {
+    , const GraphicPipeline& pipeline, DataLoader& dataLoader) {
 
     int width = 0, height = 0;
     glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
@@ -173,9 +178,9 @@ void Swapchain::Recreate(const Device& device, Surface& surface
 
     vkDeviceWaitIdle(device.Access());
 
-    Destroy(device);
+    CleanUp(device, dataLoader);
     Create(device, surface);
-    CreateFramebuffers(device, pipeline);
+    CreateFramebuffers(device, pipeline, dataLoader);
 
 }
      
@@ -197,7 +202,12 @@ VkRect2D Swapchain::Scissor() const {
     return scissor;
 }
 
-void Swapchain::Destroy(const Device& device) {
+void Swapchain::CleanUp(const Device& device, DataLoader& dataLoader) {
+    Image& image = dataLoader.AccessDepthImage();
+    vkDestroyImageView(device.Access(), image.imageView, nullptr);
+    vkDestroyImage(device.Access(), image.image, nullptr);
+    vkFreeMemory(device.Access(), image.memory, nullptr); 
+
     for(auto framebuffer : framebuffers_) {
         vkDestroyFramebuffer(device.Access(), framebuffer, nullptr);
     }

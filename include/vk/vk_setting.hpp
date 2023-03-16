@@ -17,7 +17,10 @@ private:
     unsigned int currentFrame = 0;
     uint32_t imageIndex;
 
-    VkClearValue clearValue = { 0.2f, 0.2f, 0.2f, 1.0f };
+    VkClearValue clearValues[2] = {
+        { 0.2f, 0.2f, 0.2f, 1.0f },
+        { 1.0f, 0.0f },
+    };
 
 public:
 
@@ -28,8 +31,8 @@ public:
     uint32_t ImageIndex() const { return imageIndex; }
     uint32_t& ImageIndex() { return imageIndex; }
 
-    const VkClearValue& ClearValue() const { return clearValue; }
-    VkClearValue& ClearValue() { return clearValue; }
+    const VkClearValue* ClearValues() const { return clearValues; }
+    VkClearValue* ClearValues() { return clearValues; }
 };
 
 } //vk

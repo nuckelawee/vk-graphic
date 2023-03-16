@@ -36,7 +36,7 @@ private:
 
     static PipelineStates DescribePipelineStates(const Swapchain& swapchain
         , void *pUserData);
-    void CreateRenderPass(const VkDevice& device, const Swapchain& swapchain
+    void CreateRenderPass(const Device& device, const Swapchain& swapchain
         , void *pUserData);
 
     VkShaderModule CreateShaderModule(const VkDevice& device, const std::string& code);

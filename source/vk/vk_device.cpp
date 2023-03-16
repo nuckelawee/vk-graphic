@@ -289,6 +289,26 @@ void Device::CreateLogicalDevice(const Surface& surface
         , &(queues_.transfer.queue));
 }
 
+VkFormat Device::FindSupportedFormat(const std::vector<VkFormat>& candidates
+    , VkImageTiling tiling, VkFormatFeatureFlags features) const {
+
+    for(VkFormat format : candidates) {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(gpu_, format, &properties);
+        if(tiling == VK_IMAGE_TILING_LINEAR && ((properties.linearTilingFeatures
+             & features) == features)) {
+            return format;
+        } else
+        if(tiling == VK_IMAGE_TILING_OPTIMAL && ((properties.optimalTilingFeatures
+             & features) == features)) {
+            return format;
+        }
+    }
+    ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "Failed to find supported format"
+        , "GPU");
+    return VK_FORMAT_UNDEFINED;
+}
+
 void Device::SetQueueFamilies(const Surface& surface
     , std::function<VkResult(QueueFamilies& queueFamilies
     , const VkPhysicalDevice& gpu

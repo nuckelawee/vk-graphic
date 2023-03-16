@@ -23,11 +23,12 @@ class Swapchain {
 public:
 
     void Create(const Device& device, Surface& surface);
-    void CreateFramebuffers(const Device& device, const GraphicPipeline& pipeline);
+    void CreateFramebuffers(const Device& device, const GraphicPipeline& pipeline
+        , const DataLoader& dataLoader);
     void Recreate(const Device& device, Surface& surface
-        , const GraphicPipeline& pipeline);
+        , const GraphicPipeline& pipeline, DataLoader& dataLoader);
 
-    void Destroy(const Device& device);
+    void CleanUp(const Device& device, DataLoader& dataLoader);
 
     const VkSwapchainKHR& Access() const { return swapchain_; }
     VkSwapchainKHR& Access() { return swapchain_; }
