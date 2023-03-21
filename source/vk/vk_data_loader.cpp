@@ -2,7 +2,43 @@
 #include "vk/vk_command_manager.hpp"
 #include "vk/vk_swapchain.hpp"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
 namespace vk {
+
+void DataLoader::LoadModel(const Device& device, const char* filepath
+    , std::vector<Vertex3D>& vertices, std::vector<uint32_t>& indices) {
+
+    tinyobj::attrib_t attributes;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warnings, errors;
+
+    bool result = tinyobj::LoadObj(&attributes, &shapes, &materials, &warnings
+        , &errors, filepath);
+    ErrorManager::Validate( { ERROR_TYPE_UNKNOWN, result }, warnings, errors);
+
+    for(const auto& shape : shapes) {
+        for(const auto& index : shape.mesh.indices) {
+            Vertex3D vertex;
+            vertex.pos = {
+                attributes.vertices[3 * index.vertex_index + 0],
+                attributes.vertices[3 * index.vertex_index + 1],
+                attributes.vertices[3 * index.vertex_index + 2],
+            };
+            vertex.texPos = {
+                attributes.texcoords[2 * index.texcoord_index + 0], 
+                1.0f - attributes.texcoords[2 * index.texcoord_index + 1], 
+            };
+            vertex.color = { 1.0f, 1.0f, 1.0f };
+
+            vertices.push_back(vertex);
+            indices.push_back(indices.size());
+        }
+    }
+
+}
 
 void DataLoader::CreateDepthImage(const Device& device
     , const Swapchain& swapchain, CommandManager& commandManager) {
@@ -34,7 +70,8 @@ void DataLoader::LoadTexture(const Device& device, CommandManager& commandManage
     , const char *filepath) {
 
     Texture texture;
-    FileManager::ReadImageTga(texture, filepath);
+    FileResult result = FileManager::ReadImageTga(texture, filepath);
+    ErrorManager::Validate(result, "Texture loading");
     VkDeviceSize imageSize = texture.width * texture.height * texture.bytesPerPixel;
 
     VkBuffer stagingBuffer;

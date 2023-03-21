@@ -8,8 +8,8 @@
 
 struct Texture {
     unsigned char *pixels;   
-    int width;
-    int height;
+    uint32_t width;
+    uint32_t height;
     unsigned char bytesPerPixel;
     VkFormat format; 
 };
@@ -19,6 +19,8 @@ class FileManager {
 public:
 
     static std::string ReadFile(const std::string& filepath, std::ios_base::openmode);
+
+    static void ReadImage(Texture& texture, const char* filepath);
 
     static FileResult ReadImageTga(Texture& texture, const char *filepath
         , bool supportAlpha = true);

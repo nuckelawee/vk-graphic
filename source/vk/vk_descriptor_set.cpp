@@ -65,6 +65,7 @@ void DescriptorSet::UpdateDescriptorSet(const Device& device
         imageInfo.imageView = dataLoader.AccessImage().imageView;
         imageInfo.sampler = dataLoader.AccessImage().sampler;
 
+
         size_t writeCount = 2;
         VkWriteDescriptorSet writeDescriptorSets[writeCount] = {};
         writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -82,6 +83,7 @@ void DescriptorSet::UpdateDescriptorSet(const Device& device
         writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSets[1].descriptorCount = 1;
         writeDescriptorSets[1].pImageInfo = &imageInfo;
+
 
         vkUpdateDescriptorSets(device.Access(), writeCount, writeDescriptorSets
             , 0, nullptr);

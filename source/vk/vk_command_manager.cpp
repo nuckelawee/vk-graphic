@@ -175,7 +175,7 @@ void CommandManager::RecordDrawCommands(const Device& device
         , &(buffer.buffers[0]), &offset);
 
     vkCmdBindIndexBuffer(commandBuffer, buffer.buffers[0]
-        , bufferInfo.indexMemoryShift, VK_INDEX_TYPE_UINT16);
+        , bufferInfo.indexMemoryShift, VK_INDEX_TYPE_UINT32);
 
     for(size_t i = 0; i < bufferInfo.objectCount; i++) {
         ObjectInfo& info = bufferInfo.pObjectInfos[i];

@@ -5,6 +5,7 @@
 #include "vk_device.hpp"
 #include "vk_command_pool.hpp"
 #include "file_manager.hpp"
+#include "vk_vertex_binding.hpp"
 
 namespace vk {
 
@@ -70,6 +71,9 @@ public:
 
     void CreateDepthImage(const Device& device, const Swapchain& swapchain
         , CommandManager& commandManager);
+
+    void LoadModel(const Device& device, const char* filepath
+        , std::vector<Vertex3D>& vertices, std::vector<uint32_t>& indices);
 
     void LoadTexture(const Device& device, CommandManager& commandManager
         , const char* filepath);

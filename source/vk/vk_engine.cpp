@@ -82,7 +82,7 @@ void Engine::Init(Surface& surface) {
         "build/vert_texture.spv",
         "build/frag_texture.spv"
     };
-
+/*
     Vertex3D pVerticesCube[] = {
         { { -0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
         { { -0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
@@ -117,7 +117,7 @@ void Engine::Init(Surface& surface) {
     DataInfo cubeIndexInfo {};
     cubeIndexInfo.pData = pIndicesCube;
     cubeIndexInfo.elementCount = 36;
-    cubeIndexInfo.elementSize = sizeof(uint16_t);
+    cubeIndexInfo.elementSize = sizeof(uint32_t);
     cubeIndexInfo.type = BUFFER_TYPE_INDEX;
 
     Vertex3D pVerticesSquare[] = {
@@ -139,7 +139,7 @@ void Engine::Init(Surface& surface) {
     DataInfo indexInfoSquare;
     indexInfoSquare.pData = pIndicesSquare;
     indexInfoSquare.elementCount = 6;
-    indexInfoSquare.elementSize = sizeof(uint16_t);
+    indexInfoSquare.elementSize = sizeof(uint32_t);
     indexInfoSquare.type = BUFFER_TYPE_INDEX;
 
     DataInfo* pDataObjInfos[] = {
@@ -148,6 +148,29 @@ void Engine::Init(Surface& surface) {
         &cubeIndexInfo,
         &indexInfoSquare,
     };
+*/
+
+    std::vector<Vertex3D> vertices;
+    std::vector<uint32_t> indices;
+
+    dataLoader_.LoadModel(device_, "resources/teapot.obj", vertices, indices);
+
+    DataInfo vertexInfo;
+    vertexInfo.pData = vertices.data();
+    vertexInfo.elementCount = vertices.size();
+    vertexInfo.elementSize = sizeof(Vertex3D);
+    vertexInfo.type = BUFFER_TYPE_VERTEX;
+
+    DataInfo indexInfo;
+    indexInfo.pData = indices.data();
+    indexInfo.elementCount = indices.size();
+    indexInfo.elementSize = sizeof(uint32_t);
+    indexInfo.type = BUFFER_TYPE_INDEX;
+
+    DataInfo* dataObjInfos[] {
+        &vertexInfo,
+        &indexInfo,
+    };
 
     DataInfo cameraInfo {};
     cameraInfo.elementCount = 1;
@@ -155,14 +178,14 @@ void Engine::Init(Surface& surface) {
     cameraInfo.type = BUFFER_TYPE_UNIFORM;
 
     dataLoader_.Begin(device_, commandManager_);
-    dataLoader_.LoadComplexData(device_, commandManager_, pDataObjInfos
-        , pObjects_, 2);
+    dataLoader_.LoadComplexData(device_, commandManager_, dataObjInfos
+        , pObjects_, 1);
     for(size_t i = 0; i < vk::Setting::frames; i++) {
         dataLoader_.LoadData(device_, commandManager_, cameraInfo);
         dataLoader_.LoadData(device_, commandManager_, cameraInfo);
     }
     
-    dataLoader_.LoadTexture(device_, commandManager_, "resources/picture.tga");
+    dataLoader_.LoadTexture(device_, commandManager_, "resources/picture1.tga");
     dataLoader_.CreateDepthImage(device_, swapchain_, commandManager_);
     dataLoader_.End(device_, commandManager_);
 

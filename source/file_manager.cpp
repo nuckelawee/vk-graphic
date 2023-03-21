@@ -51,12 +51,28 @@ FileResult FileManager::ReadImageTga(Texture& texture, const char *filepath
     case TGA_FORMAT_MONOCHROME_IMAGE:
     case TGA_FORMAT_RLE_MONOCHROME_IMAGE:
         result = FILE_TGA_ERROR_NOT_SUPPORT;
-        break;
+        goto EXIT;
     default:
         result = FILE_TGA_ERROR_NOT_TGA;
+        goto EXIT;
     }
+    if((tga.description & (1 << 5)) == 0) {
+        flipTgaImage(texture);
+    }
+EXIT:
     fclose(file);
     return result;
+}
+
+void flipTgaImage(Texture& texture) {
+    uint32_t rowSize = texture.width * texture.bytesPerPixel;
+    unsigned char row[rowSize];
+    for(size_t i = 0; i < texture.height / 2; i++) {
+        memcpy(row, texture.pixels + (i * rowSize), rowSize);
+        memcpy(texture.pixels + (i * rowSize)
+            , texture.pixels + ((texture.height - i - 1) * rowSize), rowSize);
+        memcpy(texture.pixels + ((texture.height - i - 1) * rowSize), row, rowSize);
+    }
 }
 
 FileResult loadColorMapImageTga(Tga& tga, Texture& texture, FILE *file
@@ -198,7 +214,7 @@ FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
         char isCompressed = chunkHeader & 128;
         unsigned char chunkPixels = chunkHeader & 127;
         if(isCompressed) {
-            if(fread(colorBuffer, 1, texture.bytesPerPixel, file) != texture.bytesPerPixel) {
+            if(fread(colorBuffer, 1, colorBufferSize, file) != colorBufferSize) {
                 return FILE_ERROR_TO_READ;   
             }
             for(size_t i = 0; i <= chunkPixels; i++) {
@@ -215,12 +231,11 @@ FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
             }
        } else {
             for(size_t i = 0; i <= chunkPixels; i++) {
-                if(fread(colorBuffer, 1, texture.bytesPerPixel
-                    , file) != texture.bytesPerPixel)
+                if(fread(colorBuffer, 1, colorBufferSize, file) != colorBufferSize)
                 { return FILE_ERROR_TO_READ; }
-                texture.pixels[currentByte] = colorBuffer[0];
+                texture.pixels[currentByte] = colorBuffer[2];
                 texture.pixels[currentByte+1] = colorBuffer[1];
-                texture.pixels[currentByte+2] = colorBuffer[2];
+                texture.pixels[currentByte+2] = colorBuffer[0];
                 if(tga.fakeAlpha) {
                     texture.pixels[currentByte+3] = 255;
                 } else if(texture.format == VK_FORMAT_R8G8B8A8_SRGB) {
@@ -238,12 +253,12 @@ void loadColorMapInfoTga(Tga& tga, Texture& texture, unsigned char *head
     , FILE *file) {
 
     TgaColorMapInfo& colorMap = tga.colorMap;
-    colorMap.colorMapType = head[1];
+    colorMap.type = head[1];
     colorMap.firstIndex = *((uint16_t*)(head+3));
     colorMap.length = *((uint16_t*)(head+5));
     colorMap.bitsPerElement = head[7];
 
-    if(colorMap.colorMapType == 0 || tga.fakeAlpha) {
+    if(colorMap.type == 0 || tga.fakeAlpha) {
         return;
     }
 
@@ -265,6 +280,7 @@ FileResult loadInfoAboutTga(Tga& tga, Texture& texture
     tga.width = *((uint16_t*)(head+12));
     tga.height = *((uint16_t*)(head+14));
     tga.bitsPerPixel = head[16];
+    tga.description = head[17]; 
 
     FileResult result = identifierTga(head[0], file);
     if(result != FILE_SUCCESS) { return result; }
@@ -310,7 +326,7 @@ FileResult allocateImageMemoryTga(Tga& tga, Texture& texture, FILE *file) {
         return FILE_ERROR_MEMORY_ALLOCATION;
     }
 
-    if(tga.colorMap.colorMapType) {
+    if(tga.colorMap.type) {
         tga.colorMap.data = texture.pixels + tga.imageBytesSize;
         if(fread(tga.colorMap.data, sizeof(unsigned char), colorSize, file) == 0) {
             return FILE_ERROR_TO_READ;

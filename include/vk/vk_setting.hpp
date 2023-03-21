@@ -18,7 +18,7 @@ private:
     uint32_t imageIndex;
 
     VkClearValue clearValues[2] = {
-        { 0.2f, 0.2f, 0.2f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
         { 1.0f, 0.0f },
     };
 

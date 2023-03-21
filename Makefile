@@ -1,10 +1,11 @@
 INCLUDE_PATH = include/
+LIBRARIES_PATH = libraries/
 
 PREFIX = build/
 CXX = g++
 CXXFLAGS = -Wall -g -std=c++17
 DEBUG = -D DEBUG=true
-LDFLAGS = -lglfw -lvulkan -ldl -lX11 -lXrandr -lXi -I$(INCLUDE_PATH)
+LDFLAGS = -lglfw -lvulkan -ldl -lX11 -lXrandr -lXi -I$(INCLUDE_PATH) -I$(LIBRARIES_PATH)
 VPATH = source/ : source/vk : source/input :shaders/
 
 print-%  : ; @echo $* = $($*)
