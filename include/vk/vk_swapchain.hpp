@@ -1,34 +1,34 @@
 #pragma once
 
 #include <algorithm>
+#include "vk_image_builder.hpp"
 
-#include "vk_device.hpp"
-#include "glfw_window.hpp"
+class Surface;
 
 namespace vk {
 
-class GraphicPipeline;
-
 class Swapchain {
 
+    Device device_;
     VkSwapchainKHR swapchain_;
 
     VkFormat imageFormat_;
     VkExtent2D extent_;
 
+    Image depthImage_;
     std::vector<VkImage> images_;
     std::vector<VkImageView> imageViews_;
     std::vector<VkFramebuffer> framebuffers_;
 
 public:
 
-    void Create(const Device& device, Surface& surface);
-    void CreateFramebuffers(const Device& device, const GraphicPipeline& pipeline
-        , const DataLoader& dataLoader);
+    void Create(const Device& device, Surface& surface, ImageBuilder& imageBuilder
+        , Setting& setting);
+    void CreateFramebuffers(VkRenderPass renderPass);
     void Recreate(const Device& device, Surface& surface
-        , const GraphicPipeline& pipeline, DataLoader& dataLoader);
+        , ImageBuilder& imageBuilder, Setting& setting, VkRenderPass renderPass);
 
-    void CleanUp(const Device& device, DataLoader& dataLoader);
+    void CleanUp();
 
     const VkSwapchainKHR& Access() const { return swapchain_; }
     VkSwapchainKHR& Access() { return swapchain_; }
@@ -40,19 +40,14 @@ public:
     VkFramebuffer AccessFramebuffer(size_t index) const 
     { return framebuffers_[index]; }
 
-    VkViewport Viewport() const;
-    VkRect2D Scissor() const;
-
 private:
-    void CreateImages(const Device& device);
-    void CreateImageViews(const Device& device);
+    void CreateImages(ImageBuilder& imageBuidler);
 
     int32_t ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>& 
         formats) const;
     int32_t ChooseSuitablePresent(const std::vector<VkPresentModeKHR>& 
         presentModes) const;
-    VkExtent2D ChooseSuitableExtent(const Device& device
-        , Surface& surface) const;
+    VkExtent2D ChooseSuitableExtent(Surface& surface) const;
 
 public:
     Swapchain() {}

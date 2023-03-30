@@ -1,4 +1,5 @@
-#include "vk/vk_graphic_pipeline.hpp"
+#include "glfw_window.hpp"
+#include "vk/vk_swapchain.hpp"
 
 namespace vk {
 
@@ -23,11 +24,10 @@ int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
     return -1;
 }
 
-VkExtent2D Swapchain::ChooseSuitableExtent(const Device& device
-    , Surface& surface) const {
+VkExtent2D Swapchain::ChooseSuitableExtent(Surface& surface) const {
 
     VkSurfaceCapabilitiesKHR capabilities = surface.Capabilities(
-        device.AccessGpu()).capabilities;
+        device_.AccessGpu()).capabilities;
     if(capabilities.currentExtent.width == UINT32_MAX) {
         ErrorManager::Validate(ERROR_TYPE_WARNING, "Screen coordinates don't correspond "\
             "to pixels", "Extent choosing");
@@ -46,10 +46,13 @@ VkExtent2D Swapchain::ChooseSuitableExtent(const Device& device
     return extent;
 }
 
-void Swapchain::Create(const Device& device, Surface& surface) {
-    SurfaceDetails surfaceCapabilities = surface.Capabilities(device.AccessGpu());
+void Swapchain::Create(const Device& device, Surface& surface
+    , ImageBuilder& imageBuilder, Setting& setting) {
 
-    QueueFamilies queueFamilies = device.AccessQueues();
+    device_ = device;
+    SurfaceDetails surfaceCapabilities = surface.Capabilities(device_.AccessGpu());
+
+    QueueFamilies queueFamilies = device_.AccessQueues();
     VkSurfaceFormatKHR surfaceFormat;
     VkPresentModeKHR presentMode;
     int32_t index;
@@ -69,7 +72,9 @@ void Swapchain::Create(const Device& device, Surface& surface) {
     }
     presentMode = surfaceCapabilities.presentModes[index];
 
-    extent_ = ChooseSuitableExtent(device, surface);
+    extent_ = ChooseSuitableExtent(surface);
+    setting.Extent() = extent_;
+
     imageFormat_ = surfaceFormat.format;
     
     VkSwapchainCreateInfoKHR swapchainInfo {};
@@ -102,72 +107,54 @@ void Swapchain::Create(const Device& device, Surface& surface) {
     swapchainInfo.clipped = VK_FALSE;
     swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
     
-    VkResult result = vkCreateSwapchainKHR(device.Access(), &swapchainInfo
+    VkResult result = vkCreateSwapchainKHR(device_.Access(), &swapchainInfo
         , nullptr, &swapchain_);
     ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
         , "Failed to create swapchain", "Swapchain creation");
     
-    CreateImages(device);
-    CreateImageViews(device);
+    CreateImages(imageBuilder);
 }
 
-void Swapchain::CreateImages(const Device& device) {
+void Swapchain::CreateImages(ImageBuilder& imageBuilder) {
     uint32_t imageCount;
-    vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(device_.Access(), swapchain_, &imageCount, nullptr);
     images_.resize(imageCount);
-    vkGetSwapchainImagesKHR(device.Access(), swapchain_, &imageCount, images_.data());
-}
+    VkResult result = vkGetSwapchainImagesKHR(device_.Access(), swapchain_
+        , &imageCount, images_.data());
+    ErrorManager::Validate(result, "Swapchain images creation");
 
-void Swapchain::CreateImageViews(const Device& device) {
-    imageViews_.resize(images_.size());
+    imageViews_.resize(imageCount);
     
-    for(size_t i = 0; i < images_.size(); i++) {
-        VkImageViewCreateInfo imageViewInfo {};
-        imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewInfo.image = images_[i];
-        imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewInfo.format = imageFormat_;
-        imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageViewInfo.subresourceRange.baseMipLevel = 0;
-        imageViewInfo.subresourceRange.levelCount = 1;
-        imageViewInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewInfo.subresourceRange.layerCount = 1;
-        VkResult result = vkCreateImageView(device.Access(), &imageViewInfo
-            , nullptr, &(imageViews_[i]));
-        ErrorManager::Validate(result, "Image view creation");
+    for(size_t i = 0; i < imageCount; i++) {
+        imageViews_[i] = ImageBuilder::CreateImageView(device_.Access()
+            , images_[i], imageFormat_, VK_IMAGE_ASPECT_COLOR_BIT);
     }
+    depthImage_ = imageBuilder.BuildDepthImage(extent_);
 }
 
-void Swapchain::CreateFramebuffers(const Device& device
-    , const GraphicPipeline& pipeline, const DataLoader& dataLoader) {
-
+void Swapchain::CreateFramebuffers(VkRenderPass renderPass) {
     framebuffers_.resize(imageViews_.size());
     for(size_t i = 0; i < framebuffers_.size(); i++) {
         uint32_t attachmentCount = 2;
         VkImageView attachments[attachmentCount]
-            = { imageViews_[i], dataLoader.AccessDepthImage().imageView };
-
+            = { imageViews_[i], depthImage_.view };
 
         VkFramebufferCreateInfo framebufferInfo {};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = pipeline.AccessRenderPass();
+        framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = attachmentCount;
         framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = extent_.width;
         framebufferInfo.height = extent_.height;
         framebufferInfo.layers = 1;
-        VkResult result = vkCreateFramebuffer(device.Access(), &framebufferInfo
+        VkResult result = vkCreateFramebuffer(device_.Access(), &framebufferInfo
             , nullptr, &(framebuffers_[i]));
         ErrorManager::Validate(result, "Framebuffer creation");
     }
 }
 
 void Swapchain::Recreate(const Device& device, Surface& surface
-    , const GraphicPipeline& pipeline, DataLoader& dataLoader) {
+    , ImageBuilder& imageBuilder, Setting& setting, VkRenderPass renderPass) {
 
     int width = 0, height = 0;
     glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
@@ -176,45 +163,26 @@ void Swapchain::Recreate(const Device& device, Surface& surface
         glfwWaitEvents();
     }
 
-    vkDeviceWaitIdle(device.Access());
+    vkDeviceWaitIdle(device_.Access());
 
-    CleanUp(device, dataLoader);
-    Create(device, surface);
-    CreateFramebuffers(device, pipeline, dataLoader);
-
-}
-     
-VkViewport Swapchain::Viewport() const {
-    VkViewport viewport {};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = extent_.width;
-    viewport.height = extent_.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    return viewport;
+    CleanUp();
+    Create(device, surface, imageBuilder, setting);
+    CreateFramebuffers(renderPass);
 }
 
-VkRect2D Swapchain::Scissor() const {
-    VkRect2D scissor {};
-    scissor.offset = { 0, 0 };
-    scissor.extent = extent_;
-    return scissor;
-}
-
-void Swapchain::CleanUp(const Device& device, DataLoader& dataLoader) {
-    Image& image = dataLoader.AccessDepthImage();
-    vkDestroyImageView(device.Access(), image.imageView, nullptr);
-    vkDestroyImage(device.Access(), image.image, nullptr);
-    vkFreeMemory(device.Access(), image.memory, nullptr); 
+void Swapchain::CleanUp() {
+    VkDevice device = device_.Access();
+    vkDestroyImageView(device, depthImage_.view, nullptr);
+    vkDestroyImage(device, depthImage_.image, nullptr);
+    vkFreeMemory(device, depthImage_.memory, nullptr); 
 
     for(auto framebuffer : framebuffers_) {
-        vkDestroyFramebuffer(device.Access(), framebuffer, nullptr);
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
     }
     for(auto imageView : imageViews_) {
-        vkDestroyImageView(device.Access(), imageView, nullptr);
+        vkDestroyImageView(device, imageView, nullptr);
     }
-    vkDestroySwapchainKHR(device.Access(), swapchain_, nullptr);
+    vkDestroySwapchainKHR(device, swapchain_, nullptr);
 }
 
 } // vk

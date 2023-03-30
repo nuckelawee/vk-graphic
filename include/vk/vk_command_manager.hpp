@@ -1,67 +1,55 @@
 #pragma once
 
-#include "vk/vk_graphic_pipeline.hpp"
-#include "vk_regulator.hpp"
-#include "vk_data_loader.hpp"
-
+#include "vk_device.hpp"
 #include <map>
-#include <vector>
 
 namespace vk {
 
+class ModelStorage;
+class GraphicPipeline;
+class Setting;
+
+enum commandType { COMMAND_TYPE_GRAPHICS, COMMAND_TYPE_TRANSFER };
+
+struct CommandInfo {
+    commandType type;
+    uint32_t bufferCount;
+    uint32_t offset;
+
+    CommandInfo(commandType t = COMMAND_TYPE_GRAPHICS, uint32_t count = 0, uint32_t offset = 0) : type(t), bufferCount(count) {}
+};
+
 struct CommandBundle {
-    CommandPool commandPool;
+    VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 };
-    
+ 
 
 class CommandManager {
+
     std::map<commandType, CommandBundle> commands_;
-    CommandPool resetTransferQueuePool_;
-    CommandPool resetGraphicQueuePool_;
+    VkCommandPool resetTransferQueuePool_;
+    VkCommandPool resetGraphicQueuePool_;
 
 public:
 
-    void Create(const Device& device);
+    static VkCommandPool CreatePool(VkDevice device, uint32_t queueIndex
+        , VkCommandPoolCreateFlags flags);
 
-    CommandInfo Allocate(const Device& device, const CommandInfo& info);
+    static VkCommandBuffer BeginSingleCommand(VkDevice device, VkCommandPool pool);
+    static void EndSingleCommand(VkDevice device, VkCommandPool pool
+        , VkQueue queue, VkCommandBuffer commandBuffer);
 
-    void RecordDrawCommands(const Device& device
-        , const Setting& setting, const GraphicPipeline& pipeline
-        , const Swapchain& swapchain, DataLoader& dataLoader
-        , const CommandInfo& commandInfo, const DescriptorSet& descriptorSet);
+    static std::vector<VkCommandBuffer> CreateCommandBuffers(VkDevice device
+        , VkCommandPool pool, uint32_t bufferCount);
 
-    void Submit(const Device& device, const Setting& setting
-        , Regulator& regulator, VkSubmitInfo& submitInfo
-        , const CommandInfo& commanInfo);
+    static void RecordDrawCommands(VkCommandBuffer& commandBuffer
+        , VkFramebuffer framebuffer, VkDescriptorSet descriptorSet
+        , const Setting& setting, GraphicPipeline& pipeline
+        , ModelStorage& ModelStorage);
 
-    const CommandBundle& Access(commandType type) const;
-    const VkCommandBuffer* Access(const CommandInfo& info) const;
-
-    void FreeCommandBuffers(const Device& device, commandType type);
-    void FreeCommandBuffers(const Device& device, const CommandInfo& info);
-    void DestroyCommandPool(const Device& device, commandType type);
-    void Destroy(const Device& device);
-
-    CommandManager() {}
-    ~CommandManager() {}
-
-    VkCommandBuffer BeginSingleCommand(const Device& device, commandType type);
-    void EndSingleCommand(const Device& device, VkCommandBuffer commandBuffer
-        , commandType type);
-
-    void CopyBuffer(const Device& device, VkBuffer source, VkBuffer destination
-        , VkDeviceSize size);
-    void CopyBufferToImage(const Device& device, VkBuffer buffer, VkImage image
-        , uint32_t width, uint32_t height);
-
-private:
-
-    CommandBundle& FindBundle(const Device& device, const CommandInfo& info);
-    
-    CommandManager(const CommandManager&) = delete;
-    CommandManager& operator=(const CommandManager) = delete;
-
+    static void Submit(VkCommandBuffer *commandBuffers, uint32_t bufferCount
+        , VkQueue queue, VkFence fence, VkSubmitInfo& submitInfo);
 };
 
 } // vk

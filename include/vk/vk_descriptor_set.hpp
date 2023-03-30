@@ -3,7 +3,6 @@
 #include <glm/glm.hpp>
 
 #include "vk_descriptor_pool.hpp"
-#include "vk_data_loader.hpp"
 
 struct MvpMatrix {
     glm::mat4 model;
@@ -13,17 +12,18 @@ struct MvpMatrix {
 
 namespace vk {
 
-class DataLoader;
+class Buffer;
+class Image;
 
 class DescriptorSet {
 
     VkDescriptorSetLayout descriptorSetLayout_;
-    VkDescriptorSet pDescriptorSets_[vk::Setting::frames];
+    VkDescriptorSet descriptorSets_[vk::Setting::frames];
 
 public:
     
     void Create(const Device& device, const DescriptorPool& pool
-        , const DataLoader& dataLoader);
+        , Buffer *ubos, Image& image);
 
     void Destroy(const Device& device, const DescriptorPool& pool);
 
@@ -39,7 +39,7 @@ public:
 private:
 
     void Allocate(const Device& device, const DescriptorPool& pool);
-    void UpdateDescriptorSet(const Device& device, const DataLoader& dataLoader);
+    void UpdateDescriptorSet(const Device& device, Buffer *ubos, Image& image);
 
 };
 

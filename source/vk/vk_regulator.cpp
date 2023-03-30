@@ -23,6 +23,7 @@ VkResult Regulator::BeginRender(const Device& device, const Swapchain& swapchain
     VkResult result = vkAcquireNextImageKHR(device.Access(), swapchain.Access()
         , UINT64_MAX, imageAvailable_[currentFrame]
         , VK_NULL_HANDLE, &setting.ImageIndex());
+
     return result; 
 }
 

@@ -2,11 +2,11 @@
 
 #include "vk_pipeline_states.hpp"
 #include "vk_vertex_binding.hpp"
-#include "vk_descriptor_set.hpp"
 
 namespace vk {
 
 class Swapchain;
+class DescriptorSet;
 
 class GraphicPipeline {
 
@@ -29,8 +29,10 @@ public:
     const VkRenderPass& AccessRenderPass() const;
     VkRenderPass& AccessRenderPass();
 
-    VkRenderPassBeginInfo RenderPassBegin(const Setting& setting
-        , const Swapchain& swapchain) const;
+    void RenderPassBegin(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer
+        , VkExtent2D extent, const Setting& setting);
+
+    VkRenderPassBeginInfo RenderPassBegin(const Setting& setting, const Swapchain& swapchain);
 
 private:
 

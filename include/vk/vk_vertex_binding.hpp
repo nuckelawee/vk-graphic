@@ -11,6 +11,7 @@ namespace vk {
 struct Vertex3D {
     glm::vec3 pos;
     glm::vec3 color;
+    glm::vec3 normal;
     glm::vec2 texPos;
 };
 

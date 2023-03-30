@@ -1,4 +1,5 @@
 #include "vk/vk_graphic_pipeline.hpp"
+#include "vk/vk_descriptor_set.hpp"
 
 namespace vk {
 
@@ -322,20 +323,39 @@ void GraphicPipeline::Create(const Device& device
 }
 
 VkRenderPassBeginInfo GraphicPipeline::RenderPassBegin(const Setting& setting
-    , const Swapchain& swapchain) const {
+    , const Swapchain& swapchain) {
 
     VkRenderPassBeginInfo renderPassInfo {};
 
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass_;
-    renderPassInfo.framebuffer = 
-        swapchain.AccessFramebuffer(setting.ImageIndex());
+    renderPassInfo.framebuffer = swapchain.AccessFramebuffer(setting.CurrentFrame());
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapchain.AccessExtent();
     renderPassInfo.clearValueCount = 2;
     renderPassInfo.pClearValues = setting.ClearValues();
 
     return renderPassInfo;
+}
+
+void GraphicPipeline::RenderPassBegin(VkCommandBuffer commandBuffer
+    , VkFramebuffer framebuffer, VkExtent2D extent
+    , const Setting& setting) {
+
+    VkRenderPassBeginInfo renderPassInfo {};
+
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass_;
+    renderPassInfo.framebuffer = framebuffer;
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = extent;
+    renderPassInfo.clearValueCount = 2;
+    renderPassInfo.pClearValues = setting.ClearValues();
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo
+        , VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS
+        , pipeline_);
 }
 
 void GraphicPipeline::Destroy(const Device& device) {

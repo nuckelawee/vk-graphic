@@ -1,9 +1,11 @@
 #include "vk/vk_descriptor_set.hpp"
+#include "vk/vk_image_builder.hpp"
+#include "vk/vk_buffer_builder.hpp"
 
 namespace vk {
 
 void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
-    , const DataLoader& dataLoader) {
+    , Buffer *ubos, Image& image) {
 
     VkDescriptorSetLayoutBinding uboBinding {};
     uboBinding.binding = 0;
@@ -33,7 +35,7 @@ void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
     ErrorManager::Validate(result, "Descriptor set creation");
 
     Allocate(device, pool);
-    UpdateDescriptorSet(device, dataLoader);
+    UpdateDescriptorSet(device, ubos, image);
 }
 
 void DescriptorSet::Allocate(const Device& device, const DescriptorPool& pool) {
@@ -46,30 +48,28 @@ void DescriptorSet::Allocate(const Device& device, const DescriptorPool& pool) {
     descriptorInfo.pSetLayouts = pSetLayouts;
 
     VkResult result = vkAllocateDescriptorSets(device.Access(), &descriptorInfo
-        , pDescriptorSets_);
+        , descriptorSets_);
     ErrorManager::Validate(result, "Descriptor set allocation");
 }
 
 void DescriptorSet::UpdateDescriptorSet(const Device& device
-    , const DataLoader& dataLoader) {
+    , Buffer *ubos, Image& image) {
 
-    const BufferData& bufferData = dataLoader.Access(BUFFER_TYPE_UNIFORM);
     for(size_t i = 0; i < vk::Setting::frames; i++) {
         VkDescriptorBufferInfo bufferInfo {};
-        bufferInfo.buffer = bufferData.buffers[i];
+        bufferInfo.buffer = ubos[i].buffer;
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(MvpMatrix);
 
         VkDescriptorImageInfo imageInfo {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = dataLoader.AccessImage().imageView;
-        imageInfo.sampler = dataLoader.AccessImage().sampler;
-
+        imageInfo.imageView = image.view;
+        imageInfo.sampler = image.sampler;
 
         size_t writeCount = 2;
         VkWriteDescriptorSet writeDescriptorSets[writeCount] = {};
         writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[0].dstSet = pDescriptorSets_[i];
+        writeDescriptorSets[0].dstSet = descriptorSets_[i];
         writeDescriptorSets[0].dstBinding = 0;
         writeDescriptorSets[0].dstArrayElement = 0;
         writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -77,7 +77,7 @@ void DescriptorSet::UpdateDescriptorSet(const Device& device
         writeDescriptorSets[0].pBufferInfo = &bufferInfo;
 
         writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[1].dstSet = pDescriptorSets_[i];
+        writeDescriptorSets[1].dstSet = descriptorSets_[i];
         writeDescriptorSets[1].dstBinding = 1;
         writeDescriptorSets[1].dstArrayElement = 0;
         writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -99,18 +99,18 @@ VkDescriptorSetLayout& DescriptorSet::AccessLayout() {
 }
 
 const VkDescriptorSet* DescriptorSet::Access() const {
-    return pDescriptorSets_;
+    return descriptorSets_;
 }
 
 VkDescriptorSet* DescriptorSet::Access() {
-    return pDescriptorSets_;
+    return descriptorSets_;
 }
 
 void DescriptorSet::Destroy(const Device& device
     , const DescriptorPool& pool) {
 
     vkFreeDescriptorSets(device.Access(), pool.Access()
-        , vk::Setting::frames, pDescriptorSets_);
+        , vk::Setting::frames, descriptorSets_);
     vkDestroyDescriptorSetLayout(device.Access(), descriptorSetLayout_, nullptr);
 }
 

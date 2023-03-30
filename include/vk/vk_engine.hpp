@@ -8,8 +8,9 @@
 #include "vk_device.hpp"
 #include "vk_swapchain.hpp"
 #include "vk_graphic_pipeline.hpp"
-#include "vk_data_loader.hpp"
 #include "vk_command_manager.hpp"
+#include "vk_regulator.hpp"
+#include "vk_model_storage.hpp"
 
 #include "camera.hpp"
 
@@ -20,15 +21,20 @@ class Engine {
     Device device_;
     Swapchain swapchain_;
     LayersAndExtensions attachments_;
-    DataLoader dataLoader_;
-    CommandManager commandManager_;
     Regulator regulator_;
     GraphicPipeline pipeline_;
     Instance instance_;
     DescriptorSet descriptorSet_;
     DescriptorPool descriptorPool_;
+    CommandManager commandManager_;
 
-    ObjectInfo pObjects_[2];
+    ModelStorage modelStorage_;
+    BufferBuilder bufferBuilder_;
+    ImageBuilder imageBuilder_;
+    Buffer ubos_[vk::Setting::frames];
+
+    VkCommandPool graphicPool_;
+    std::vector<VkCommandBuffer> graphicCommands_;
 
     AppSetting& setting_;
 public:

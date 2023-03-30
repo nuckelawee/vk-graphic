@@ -1,68 +1,39 @@
 #include "vk/vk_command_manager.hpp"
+#include "vk/vk_graphic_pipeline.hpp"
+#include "vk/vk_model_storage.hpp"
+#include "vk/vk_device.hpp"
 
 namespace vk {
 
-void CommandManager::Create(const Device& device) {
-    resetGraphicQueuePool_.Create(device, COMMAND_TYPE_GRAPHICS);
-    resetTransferQueuePool_.Create(device, COMMAND_TYPE_TRANSFER);
+VkViewport setViewport(const VkExtent2D& extent);
+VkRect2D setScissor(const VkExtent2D& extent);
+void beginCommand(VkCommandBuffer commandBuffer);
+
+VkCommandPool CommandManager::CreatePool(VkDevice device, uint32_t queueIndex
+    , VkCommandPoolCreateFlags flags) {
+
+    VkCommandPool pool;
+    VkCommandPoolCreateInfo commandPoolInfo {};
+    commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolInfo.flags = flags;
+    commandPoolInfo.queueFamilyIndex = queueIndex;
+    VkResult result = vkCreateCommandPool(device, &commandPoolInfo
+        , nullptr, &pool);
+    ErrorManager::Validate(result, "Command pool creation");
+    return pool;
 }
 
-CommandBundle& CommandManager::FindBundle(const Device& device
-    , const CommandInfo& info) {
-
-    bool wasPreviouslyAllocated = commands_.find(info.type) != commands_.end();
-    if(wasPreviouslyAllocated) {
-        ErrorManager::Validate(ERROR_TYPE_WARNING, "This type of commands was previously "\
-            "allocated!", "Command manager allocation");
-
-        return commands_.find(info.type)->second;
-    } 
-    CommandBundle bundle;
-    bundle.commandPool.Create(device, info.type);
-    commands_.emplace(info.type, bundle); 
-    return commands_.find(info.type)->second;    
-}
-    
-CommandInfo CommandManager::Allocate(const Device& device
-    , const CommandInfo& info) {
-
-    CommandBundle& commandBundle = FindBundle(device, info);
-
-    size_t curBufferCount = commandBundle.commandBuffers.size();
-    commandBundle.commandBuffers.resize(curBufferCount + info.bufferCount);
-
-    VkCommandBufferAllocateInfo commandBuffersInfo {};
-    commandBuffersInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    commandBuffersInfo.commandPool = commandBundle.commandPool.Access();
-    commandBuffersInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    commandBuffersInfo.commandBufferCount = info.bufferCount;
-
-    VkResult result = vkAllocateCommandBuffers(device.Access()
-        , &commandBuffersInfo, (commandBundle.commandBuffers.data()) + curBufferCount);
-
-    ErrorManager::Validate(result, "Command manager allocation");
-    CommandInfo newInfo = info;
-    newInfo.offset = curBufferCount;
-    
-    return newInfo;
-}
-
-VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device
-    , commandType poolType) {
+VkCommandBuffer CommandManager::BeginSingleCommand(VkDevice device
+    , VkCommandPool pool) {
 
     VkCommandBufferAllocateInfo allocateInfo {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocateInfo.commandBufferCount = 1;
-
-    if(poolType == COMMAND_TYPE_GRAPHICS) {
-        allocateInfo.commandPool = resetGraphicQueuePool_.Access();
-    } else {
-        allocateInfo.commandPool = resetTransferQueuePool_.Access();
-    }
+    allocateInfo.commandPool = pool;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device.Access(), &allocateInfo, &commandBuffer);
+    vkAllocateCommandBuffers(device, &allocateInfo, &commandBuffer);
     
     VkCommandBufferBeginInfo beginInfo {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -72,8 +43,8 @@ VkCommandBuffer CommandManager::BeginSingleCommand(const Device& device
     return commandBuffer;
 }
 
-void CommandManager::EndSingleCommand(const Device& device
-    , VkCommandBuffer commandBuffer, commandType poolType) {
+void CommandManager::EndSingleCommand(VkDevice device, VkCommandPool pool
+    , VkQueue queue, VkCommandBuffer commandBuffer) {
 
     vkEndCommandBuffer(commandBuffer);
     
@@ -82,177 +53,96 @@ void CommandManager::EndSingleCommand(const Device& device
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    VkQueue queue;
-    CommandPool pool;
-    if(poolType == COMMAND_TYPE_GRAPHICS) {
-        queue = device.AccessQueues().graphic.queue;
-        pool = resetGraphicQueuePool_;
-    } else {
-        queue = device.AccessQueues().transfer.queue;
-        pool = resetTransferQueuePool_;
-    }
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
 
-    vkFreeCommandBuffers(device.Access(), pool.Access(), 1, &commandBuffer);
+    vkFreeCommandBuffers(device, pool, 1, &commandBuffer);
 }
 
-void CommandManager::CopyBuffer(const Device& device, VkBuffer source
-    , VkBuffer destination, VkDeviceSize size) {
+std::vector<VkCommandBuffer> CommandManager::CreateCommandBuffers(VkDevice device
+    , VkCommandPool pool, uint32_t bufferCount) {
 
-    VkCommandBuffer commandBuffer = BeginSingleCommand(device, COMMAND_TYPE_TRANSFER);
+    std::vector<VkCommandBuffer> commandBuffers(bufferCount);
+    VkCommandBufferAllocateInfo commandBuffersInfo {};
+    commandBuffersInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBuffersInfo.commandPool = pool;
+    commandBuffersInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBuffersInfo.commandBufferCount = bufferCount;
 
-    VkBufferCopy copy {};
-    copy.size = size;
-    vkCmdCopyBuffer(commandBuffer, source, destination, 1, &copy);
+    VkResult result = vkAllocateCommandBuffers(device
+        , &commandBuffersInfo, commandBuffers.data());
 
-    EndSingleCommand(device, commandBuffer, COMMAND_TYPE_TRANSFER);
+    ErrorManager::Validate(result, "Command manager allocation");
+    return commandBuffers;
 }
 
-void CommandManager::CopyBufferToImage(const Device& device, VkBuffer buffer
-    , VkImage image, uint32_t width, uint32_t height) {
+void CommandManager::RecordDrawCommands(VkCommandBuffer& commandBuffer
+    , VkFramebuffer framebuffer, VkDescriptorSet descriptorSet
+    , const Setting& setting, GraphicPipeline& pipeline
+    , ModelStorage& modelStorage) {
 
-    VkCommandBuffer commandBuffer = BeginSingleCommand(device, COMMAND_TYPE_TRANSFER); 
-
-    VkBufferImageCopy region {};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = { 0, 0 };
-    region.imageExtent = {
-        width,
-        height,
-        1
-    };
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image
-        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    EndSingleCommand(device, commandBuffer, COMMAND_TYPE_TRANSFER);
-}
-
-void CommandManager::RecordDrawCommands(const Device& device
-    , const Setting& setting, const GraphicPipeline& pipeline
-    , const Swapchain& swapchain, DataLoader& dataLoader
-    , const CommandInfo& commandInfo
-    , const DescriptorSet& descriptorSet) {
-
-    const VkCommandBuffer& commandBuffer = *(Access(commandInfo));
+    const VkExtent2D& extent = setting.Extent();
 
     vkResetCommandBuffer(commandBuffer, 0);
+    beginCommand(commandBuffer);
 
-    VkCommandBufferBeginInfo commandBufferInfo {};
-    commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    commandBufferInfo.flags = 0;
-    commandBufferInfo.pInheritanceInfo = nullptr;
+    pipeline.RenderPassBegin(commandBuffer, framebuffer, extent, setting);
 
-    VkRenderPassBeginInfo renderPassInfo = pipeline.RenderPassBegin(
-        setting, swapchain); 
-    VkViewport viewport = swapchain.Viewport();
-    VkRect2D scissor = swapchain.Scissor();
-
-    VkResult result = vkBeginCommandBuffer(commandBuffer
-        , &commandBufferInfo);
-    ErrorManager::Validate(result, "Command buffers recording");
-    
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo
-        , VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS
-        , pipeline.Access());
-
+    VkViewport viewport = setViewport(extent);
+    VkRect2D scissor = setScissor(extent);
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    const BufferData& buffer = dataLoader.Access(BUFFER_TYPE_COMPLEX);
-    const BufferInfo& bufferInfo = buffer.infos[0];
-  
-    const VkDeviceSize& offset = 0;
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1
-        , &(buffer.buffers[0]), &offset);
-
-    vkCmdBindIndexBuffer(commandBuffer, buffer.buffers[0]
-        , bufferInfo.indexMemoryShift, VK_INDEX_TYPE_UINT32);
-
-    for(size_t i = 0; i < bufferInfo.objectCount; i++) {
-        ObjectInfo& info = bufferInfo.pObjectInfos[i];
-        
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS
-            , pipeline.AccessLayout(), 0, 1
-            , descriptorSet.Access()+setting.CurrentFrame()
-            , 0, nullptr);
-        
-        vkCmdDrawIndexed(commandBuffer, info.indexCount, 1, info.indexShift, 0, 0);
-    }
+    modelStorage.DrawModels(commandBuffer, pipeline.AccessLayout(), descriptorSet);
 
     vkCmdEndRenderPass(commandBuffer);
-    result = vkEndCommandBuffer(commandBuffer);
+    VkResult result = vkEndCommandBuffer(commandBuffer);
     ErrorManager::Validate(result, "Command buffers recording");
 }
 
-void CommandManager::Submit(const Device& device, const Setting& setting
-    , Regulator& regulator, VkSubmitInfo& submitInfo
-    , const CommandInfo& commandInfo) {
-
-    const VkCommandBuffer *pCommandBuffers = Access(commandInfo);
+void CommandManager::Submit(VkCommandBuffer *commandBuffers
+    , uint32_t bufferCount, VkQueue queue, VkFence fence
+    , VkSubmitInfo& submitInfo) {
 
     VkPipelineStageFlags waitStages[] = 
         { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = commandInfo.bufferCount;
-    submitInfo.pCommandBuffers = pCommandBuffers;
+    submitInfo.commandBufferCount = bufferCount;
+    submitInfo.pCommandBuffers = commandBuffers;
    
-    VkResult result = vkQueueSubmit(device.AccessQueues().graphic.queue
-        , 1, &submitInfo, regulator.AccessFence(setting.CurrentFrame()));
+    VkResult result = vkQueueSubmit(queue, 1, &submitInfo, fence);
     ErrorManager::Validate(result, "Drawing");
 }
 
-const VkCommandBuffer* CommandManager::Access(const CommandInfo& info) const {
-    if(commands_.find(info.type) == commands_.end()) {
-        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "This type of command buffers "\
-            "weren't allocated", "Command manager access");
-        return nullptr;
-    }
-    return commands_.find(info.type)->second.commandBuffers.data() + info.offset;
+
+void beginCommand(VkCommandBuffer commandBuffer) {
+    VkCommandBufferBeginInfo beginInfo {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    VkResult result = vkBeginCommandBuffer(commandBuffer
+        , &beginInfo);
+    ErrorManager::Validate(result, "Command buffers recording");
+}
+     
+VkViewport setViewport(const VkExtent2D& extent) {
+    VkViewport viewport {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = extent.width;
+    viewport.height = extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    return viewport;
 }
 
-const CommandBundle& CommandManager::Access(const commandType type) const {
-    if(commands_.find(type) == commands_.end()) {
-        ErrorManager::Validate(ERROR_TYPE_UNSOLVABLE, "This type of command buffers "\
-            "weren't allocated", "Command manager access");
-        return commands_.end()->second;
-    }
-    return commands_.find(type)->second;
-}
-
-void CommandManager::FreeCommandBuffers(const Device& device, commandType type) {
-    CommandBundle& bundle = commands_.find(type)->second;
-    vkFreeCommandBuffers(device.Access(), bundle.commandPool.Access()
-        , bundle.commandBuffers.size(), bundle.commandBuffers.data());
-}
-
-void CommandManager::FreeCommandBuffers(const Device& device, const CommandInfo& info) {
-    CommandBundle& bundle = commands_.find(info.type)->second;
-    vkFreeCommandBuffers(device.Access(), bundle.commandPool.Access()
-        , info.bufferCount, bundle.commandBuffers.data() + info.offset);
-}
-
-void CommandManager::DestroyCommandPool(const Device& device, commandType type) {
-    CommandPool& commandPool = commands_.find(type)->second.commandPool;
-    commandPool.Destroy(device);
-    commands_.erase(type);
-}
-
-void CommandManager::Destroy(const Device& device) {
-    for(auto& pair : commands_) {
-        pair.second.commandPool.Destroy(device);
-    }
-    resetGraphicQueuePool_.Destroy(device);
-    resetTransferQueuePool_.Destroy(device);
+VkRect2D setScissor(const VkExtent2D& extent) {
+    VkRect2D scissor {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent;
+    return scissor;
 }
 
 } //vk

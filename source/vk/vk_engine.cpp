@@ -6,7 +6,8 @@ void Engine::Acquire(Surface& surface) {
     VkResult result = regulator_.BeginRender(device_, swapchain_
         , setting_.Vulkan());
     if(result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_, dataLoader_);
+        swapchain_.Recreate(device_, surface, imageBuilder_, setting_.Vulkan()
+            , pipeline_.AccessRenderPass());
     } else {
         ErrorManager::Validate(result, "Image acquiring");
     }
@@ -22,7 +23,8 @@ void Engine::Present(Surface& surface, VkPresentInfoKHR& presentInfo) {
         , &presentInfo);
 
     if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swapchain_.Recreate(device_, surface, pipeline_, dataLoader_);
+        swapchain_.Recreate(device_, surface, imageBuilder_, setting_.Vulkan()
+            , pipeline_.AccessRenderPass());
     } else {
         ErrorManager::Validate(result, "Presentation");
     }
@@ -30,32 +32,33 @@ void Engine::Present(Surface& surface, VkPresentInfoKHR& presentInfo) {
 
 void Engine::Update(Surface& surface, const Camera& camera) {
 
-    BufferData& bufferData = dataLoader_.Access(BUFFER_TYPE_UNIFORM);
-    void *pBufferMapped = bufferData.buffersMapped[setting_.Vulkan().CurrentFrame()];
+    uint32_t &currentFrame = setting_.Vulkan().CurrentFrame();
 
-    memcpy(pBufferMapped, &camera.Access(), sizeof(MvpMatrix));
-    
+    void *mappedData;
+    vkMapMemory(device_.Access(), ubos_[currentFrame].memory
+        , 0, sizeof(MvpMatrix), 0, &mappedData);
+    memcpy(mappedData, &camera.Access(), sizeof(MvpMatrix));
+    vkUnmapMemory(device_.Access(), ubos_[currentFrame].memory);
+
     Acquire(surface);
 
-    CommandInfo commandInfo;
-    commandInfo.type = COMMAND_TYPE_GRAPHICS;
-    commandInfo.bufferCount = 1;
-    commandInfo.offset = setting_.Vulkan().CurrentFrame();
-
-    commandManager_.RecordDrawCommands(device_, setting_.Vulkan()
-        , pipeline_, swapchain_, dataLoader_, commandInfo, descriptorSet_);
+    CommandManager::RecordDrawCommands(graphicCommands_[currentFrame]
+        , swapchain_.AccessFramebuffer(setting_.Vulkan().ImageIndex())
+        , descriptorSet_.Access()[currentFrame], setting_.Vulkan()
+        , pipeline_, modelStorage_);
 
     VkSubmitInfo submitInfo {};
     VkPresentInfoKHR presentInfo {};
 
     regulator_.Sync(setting_.Vulkan(), submitInfo, presentInfo);
 
-    commandManager_.Submit(device_, setting_.Vulkan(), regulator_
-        , submitInfo, commandInfo);
+    CommandManager::Submit(graphicCommands_.data() + currentFrame, 1
+        , device_.AccessQueues().graphic.queue
+        , regulator_.AccessFence(currentFrame), submitInfo);
+
     Present(surface, presentInfo);
 
-    setting_.Vulkan().CurrentFrame() = (setting_.Vulkan().ImageIndex()+1) 
-        % vk::Setting::frames;
+    currentFrame = (currentFrame+1) % vk::Setting::frames;
 }
 
 void Engine::Init(Surface& surface) {
@@ -72,128 +75,39 @@ void Engine::Init(Surface& surface) {
     LayersAndExtensions::PrintAvailableLayersAndExtensions(device_.AccessGpu());
 #endif
 
-    swapchain_.Create(device_, surface);
+    bufferBuilder_.Init(device_);
+    imageBuilder_.Init(device_);
+    swapchain_.Create(device_, surface, imageBuilder_, setting_.Vulkan());
+    
+    graphicPool_ = CommandManager::CreatePool(device_.Access()
+        , device_.AccessQueues().graphic.index.value()
+        , VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+        | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    commandManager_.Create(device_);
-    commandManager_.Allocate(device_, CommandInfo(COMMAND_TYPE_GRAPHICS
-        , vk::Setting::frames));
+    graphicCommands_ = CommandManager::CreateCommandBuffers(
+        device_.Access(), graphicPool_, vk::Setting::frames);
 
+    modelStorage_.Init(device_);
+    modelStorage_.Add( { "resources/teapot.obj", "resources/picture1.tga" } );
+    std::pair<std::vector<ModelView>, std::pair<Buffer, Buffer>>
+        modelViews = modelStorage_.SubmitModels();
+
+    for(size_t i = 0; i < vk::Setting::frames; i++) {
+        ubos_[i] = bufferBuilder_.BuildBuffer(nullptr, sizeof(MvpMatrix)
+            , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+            , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    }
     const std::vector<std::string> shadersPath = {
         "build/vert_texture.spv",
         "build/frag_texture.spv"
     };
-/*
-    Vertex3D pVerticesCube[] = {
-        { { -0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-        { { -0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-        { {  0.25f, -0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-        { {  0.25f,  0.25f, -0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-        { {  0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-        { {  0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-        { { -0.25f, -0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-        { { -0.25f,  0.25f,  0.25f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-    };
-
-    uint16_t pIndicesCube[] = {
-        0, 1, 2,
-        2, 1, 3,
-        2, 3, 4,
-        4, 3, 5,
-        4, 5, 6,
-        6, 5, 7,
-        6, 7, 0,
-        0, 7, 1,
-        6, 0, 2,
-        2, 4, 6,
-        7, 5, 3,
-        7, 3, 1,
-    };
-    DataInfo cubeVertexInfo {};
-    cubeVertexInfo.pData = pVerticesCube;
-    cubeVertexInfo.elementCount = 8;
-    cubeVertexInfo.elementSize = sizeof(Vertex3D);
-    cubeVertexInfo.type = BUFFER_TYPE_VERTEX;
-    
-    DataInfo cubeIndexInfo {};
-    cubeIndexInfo.pData = pIndicesCube;
-    cubeIndexInfo.elementCount = 36;
-    cubeIndexInfo.elementSize = sizeof(uint32_t);
-    cubeIndexInfo.type = BUFFER_TYPE_INDEX;
-
-    Vertex3D pVerticesSquare[] = {
-        { {  0.3f, -0.3f, -3.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-        { {  0.3f,  0.3f, -3.0f }, { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-        { { -0.3f,  0.3f, -3.0f }, { 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-        { { -0.3f, -0.3f, -3.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-    };
-    uint16_t pIndicesSquare[] = {
-        0, 1, 2, 0, 2, 3
-    };
-
-    DataInfo vertexInfoSquare;
-    vertexInfoSquare.pData = pVerticesSquare;
-    vertexInfoSquare.elementCount = 4;
-    vertexInfoSquare.elementSize = sizeof(Vertex3D);
-    vertexInfoSquare.type = BUFFER_TYPE_VERTEX;
-
-    DataInfo indexInfoSquare;
-    indexInfoSquare.pData = pIndicesSquare;
-    indexInfoSquare.elementCount = 6;
-    indexInfoSquare.elementSize = sizeof(uint32_t);
-    indexInfoSquare.type = BUFFER_TYPE_INDEX;
-
-    DataInfo* pDataObjInfos[] = {
-        &cubeVertexInfo,
-        &vertexInfoSquare,
-        &cubeIndexInfo,
-        &indexInfoSquare,
-    };
-*/
-
-    std::vector<Vertex3D> vertices;
-    std::vector<uint32_t> indices;
-
-    dataLoader_.LoadModel(device_, "resources/teapot.obj", vertices, indices);
-
-    DataInfo vertexInfo;
-    vertexInfo.pData = vertices.data();
-    vertexInfo.elementCount = vertices.size();
-    vertexInfo.elementSize = sizeof(Vertex3D);
-    vertexInfo.type = BUFFER_TYPE_VERTEX;
-
-    DataInfo indexInfo;
-    indexInfo.pData = indices.data();
-    indexInfo.elementCount = indices.size();
-    indexInfo.elementSize = sizeof(uint32_t);
-    indexInfo.type = BUFFER_TYPE_INDEX;
-
-    DataInfo* dataObjInfos[] {
-        &vertexInfo,
-        &indexInfo,
-    };
-
-    DataInfo cameraInfo {};
-    cameraInfo.elementCount = 1;
-    cameraInfo.elementSize = sizeof(MvpMatrix);
-    cameraInfo.type = BUFFER_TYPE_UNIFORM;
-
-    dataLoader_.Begin(device_, commandManager_);
-    dataLoader_.LoadComplexData(device_, commandManager_, dataObjInfos
-        , pObjects_, 1);
-    for(size_t i = 0; i < vk::Setting::frames; i++) {
-        dataLoader_.LoadData(device_, commandManager_, cameraInfo);
-        dataLoader_.LoadData(device_, commandManager_, cameraInfo);
-    }
-    
-    dataLoader_.LoadTexture(device_, commandManager_, "resources/picture1.tga");
-    dataLoader_.CreateDepthImage(device_, swapchain_, commandManager_);
-    dataLoader_.End(device_, commandManager_);
 
     descriptorPool_.Create(device_);
-    descriptorSet_.Create(device_, descriptorPool_, dataLoader_);   
+    descriptorSet_.Create(device_, descriptorPool_, ubos_, modelViews.first[0].image);   
 
     pipeline_.Create(device_, swapchain_, shadersPath, descriptorSet_);
-    swapchain_.CreateFramebuffers(device_, pipeline_, dataLoader_);
+    swapchain_.CreateFramebuffers(pipeline_.AccessRenderPass());
 
     regulator_.Create(device_);
   
@@ -203,66 +117,20 @@ void Engine::Init(Surface& surface) {
 void Engine::Terminate(Surface& surface) {
     vkDeviceWaitIdle(device_.Access());
 
+    for(size_t i = 0; i < vk::Setting::frames; i++) {
+        ubos_[i].Destroy(device_.Access());
+    }
+    vkDestroyCommandPool(device_.Access(), graphicPool_, nullptr);
+    modelStorage_.Destroy();
+    imageBuilder_.Destroy();
+    bufferBuilder_.Destroy();
     descriptorSet_.Destroy(device_, descriptorPool_);   
     descriptorPool_.Destroy(device_);
     regulator_.Destroy(device_);
-    dataLoader_.Destroy(device_);
-    commandManager_.Destroy(device_);
-    swapchain_.CleanUp(device_, dataLoader_);
+    swapchain_.CleanUp();
     pipeline_.Destroy(device_);
     device_.Destroy();
     surface.Destroy(instance_);
 }
-/*
-    Vertex2D pVerticesSquare[] = {
-        { {  0.3f, -0.3f }, { 1.0f, 0.0f, 0.0f } },
-        { {  0.3f,  0.3f }, { 1.0f, 1.0f, 0.0f } },
-        { { -0.3f,  0.3f }, { 1.0f, 0.0f, 1.0f } },
-        { { -0.3f, -0.3f }, { 1.0f, 1.0f, 0.0f } },
-    };
-    uint16_t pIndicesSquare[] = {
-        0, 1, 2, 0, 2, 3
-    };
-
-    Vertex2D pVerticesTriangle[] = {
-        { { -0.6f, -0.8f }, { 1.0f, 0.0f, 0.0f } },
-        { { -0.4f, -0.4f }, { 0.0f, 1.0f, 0.0f } },
-        { { -0.8f, -0.4f }, { 0.0f, 0.0f, 1.0f } },
-    };
-    uint16_t pIndicesTriangle[] = {
-        0, 1, 2 
-    };
-
-    DataInfo vertexInfoSquare;
-    vertexInfoSquare.pData = pVerticesSquare;
-    vertexInfoSquare.elementCount = 4;
-    vertexInfoSquare.elementSize = sizeof(Vertex2D);
-    vertexInfoSquare.type = BUFFER_TYPE_VERTEX;
-
-    DataInfo indexInfoSquare;
-    indexInfoSquare.pData = pIndicesSquare;
-    indexInfoSquare.elementCount = 6;
-    indexInfoSquare.elementSize = sizeof(uint16_t);
-    indexInfoSquare.type = BUFFER_TYPE_INDEX;
-
-    DataInfo vertexInfoTriangle;
-    vertexInfoTriangle.pData = pVerticesTriangle;
-    vertexInfoTriangle.elementCount = 3;
-    vertexInfoTriangle.elementSize = sizeof(Vertex2D);
-    vertexInfoTriangle.type = BUFFER_TYPE_VERTEX;
-
-    DataInfo indexInfoTriangle;
-    indexInfoTriangle.pData = pIndicesTriangle;
-    indexInfoTriangle.elementCount = 3;
-    indexInfoTriangle.elementSize = sizeof(uint16_t);
-    indexInfoTriangle.type = BUFFER_TYPE_INDEX;
-
-    DataInfo *dataObjInfos[4] = {
-        &vertexInfoSquare,
-        &vertexInfoTriangle,
-        &indexInfoSquare,
-        &indexInfoTriangle
-    };
-*/
 
 } //vk
