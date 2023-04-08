@@ -1,39 +1,29 @@
 #pragma once
 
-#include "vk_swapchain.hpp"
+#include <array>
+#include "vk_settings.hpp"
 
 namespace vk {
 
+class Device;
+
 class Regulator {
     
-    VkSemaphore imageAvailable_[vk::Setting::frames];
-    VkSemaphore renderFinished_[vk::Setting::frames];
-    VkFence inFlight_[vk::Setting::frames];
-
-private:
-
-    void CreateSemaphore(const Device& device, VkSemaphore& semaphore);
-    void CreateFence(const Device& device, VkFence& fence);
-    
-    void DestroySemaphore(const Device& device, VkSemaphore& semaphore);
-    void DestroyFence(const Device& device, VkFence& fence);
+    std::array<VkSemaphore, vk::Settings::frames> imageAvailable_;
+    std::array<VkSemaphore, vk::Settings::frames> renderFinished_;
+    std::array<VkFence, vk::Settings::frames> inFlight_;
+    VkDevice device_;
 
 public:
 
-    void Create(const Device& device);
-    void Destroy(const Device& device);
+    void Create(VkDevice device);
+    void Destroy();
 
-    VkResult BeginRender(const Device& device, const Swapchain& swapchain
-        , Setting& setting);
+    VkResult BeginRender(VkSwapchainKHR swapchain) noexcept;
 
-    void Sync(const Setting& setting, VkSubmitInfo& submitInfo
-        , VkPresentInfoKHR& presentInfo);
+    void Sync(VkSubmitInfo& submitInfo, VkPresentInfoKHR& presentInfo) noexcept;
 
-    const VkFence& AccessFence(size_t currentFrame) const;
-    VkFence& AccessFence(size_t currentFrame);
-
-    Regulator() {}
-    ~Regulator() {}
+    VkFence AccessFence(size_t currentFrame) noexcept;
 
 };
 

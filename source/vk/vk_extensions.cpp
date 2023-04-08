@@ -150,29 +150,29 @@ VkResult LayersAndExtensions::RequestInstanceLayers(
 }
 
 VkResult LayersAndExtensions::RequestInstanceExtensions(
-      const std::vector<const char*>& extensions) {
+    const std::vector<const char*>& requiredExtensions) {
 
     uint32_t extensionCount;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-    if(extensionCount == 0 || extensionCount < extensions.size()) {
+    if(extensionCount == 0 || extensionCount < requiredExtensions.size()) {
         ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
             , "Instance extension request");
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 
-    VkExtensionProperties pAvailableExtensions[extensionCount];
+    VkExtensionProperties availableExtensions[extensionCount];
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount
-        , pAvailableExtensions);
+        , availableExtensions);
 
-    for(size_t i = 0; i < extensions.size(); i++) {
-        int32_t extensionIndex = ExtensionExist(extensions[i]
-            , pAvailableExtensions, extensionCount);
+    for(size_t i = 0; i < requiredExtensions.size(); ++i) {
+        int32_t extensionIndex = ExtensionExist(requiredExtensions[i]
+            , availableExtensions, extensionCount);
         if(extensionIndex == -1) {
-            ErrorManager::Validate(ERROR_TYPE_WARNING, "Extension not present"
-                , "Instance extension request");
+            std::cerr << "Require [ " << requiredExtensions[i] << " ] but "\
+                "this extension not present\n";
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
-        enableInstanceExtensions.push_back(pAvailableExtensions[extensionIndex]);
+        enableInstanceExtensions.push_back(availableExtensions[extensionIndex]);
     }
     return VK_SUCCESS;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "file_error.hpp"
+class BinaryIfstream;
 
 enum TgaFormat { 
     TGA_FORMAT_NO_IMAGE = 0,
@@ -33,25 +33,26 @@ struct Tga {
 
 void flipTgaImage(Texture& texture);
 
-FileResult loadInfoAboutTga(Tga& tga, Texture& texture
-     , FILE *file, const char *pFilepath, bool supportAlpha);
+void loadInfoAboutTga(Tga& tga, Texture& texture
+     , const BinaryIfstream& file, bool supportAlpha);
 
 void loadColorMapTga(Tga& tga, Texture& texture, unsigned char *head
-    , FILE *file);
+    , const BinaryIfstream& file);
 
-FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *pFilepath);
+void loadRleTrueColorImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file);
     
-FileResult loadTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *pFilepath);
+void loadTrueColorImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file);
     
-FileResult loadColorMapImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *filepath);
+void loadColorMapImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file);
 
-FileResult loadRleColorMapImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *filepath);
+void loadRleColorMapImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file);
 
-FileResult identifierTga(unsigned char idLength, FILE *file);
+void identifierTga(unsigned char idLength, const BinaryIfstream& file);
 
-FileResult allocateImageMemoryTga(Tga& tga, Texture& texture, FILE *file);
+void allocateImageMemoryTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file);
 

@@ -1,8 +1,8 @@
-#include "app.hpp"
+#include "application.hpp"
+#include <memory>
 
 int main() {
-    App *app = new App;
+    std::unique_ptr<Application> app = std::make_unique<Application>();
     app->Run();
-    delete app;
     return 0;
 }

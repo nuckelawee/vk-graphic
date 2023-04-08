@@ -1,32 +1,31 @@
 #pragma once
 
-#include "app_setting.hpp"
-#include "camera.hpp"
+#include <vector>
 
 namespace input {
 
+enum class ContextType { camera, unknown };
+
 class Context {
-    ContextType type_ = CONTEXT_TYPE_UNKNOWN;
-    void *pContext_ = nullptr;
-
-public:
-    
-    void UpdateMouseButtons(int button);
-    void UpdateMousePosition(float deltaX, float deltaY);
-
-    void UpdateKeys(const bool *pKeys);
-
-    void Switch(void *pContext, ContextType type);
-
-private:
-
-    void MoveCamera(const bool *pKeys);
-    void RotateCamera(float deltaXPos, float deltaYPos);
+    ContextType type_ = ContextType::unknown;
+    void* context_ = nullptr;
 
 public:
 
     Context() {}
-    ~Context() {}
+    Context(ContextType type, void* context);
+    
+    void UpdateMouseButtons(int button) noexcept;
+    void UpdateMousePosition(float deltaX, float deltaY) noexcept;
+
+    void UpdateKeys(const std::vector<bool>& keys) noexcept;
+
+    void Switch(ContextType type, void* context) noexcept;
+
+private:
+
+    void MoveCamera(const std::vector<bool>& keys) noexcept;
+    void RotateCamera(float deltaXPos, float deltaYPos) noexcept;
 
 };
 

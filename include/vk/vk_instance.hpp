@@ -1,11 +1,10 @@
 #pragma once
 
-#include "app_setting.hpp"
-#include "error_manager.hpp"
-
 #include "vk_debug_messenger.hpp"
 
 namespace vk {
+
+class LayerAndExtensions;
 
 class Instance {
 
@@ -14,15 +13,13 @@ class Instance {
 
 public:
 
-    void Create(const AppSetting& setting, const LayersAndExtensions& attachments);
+    void Create(const LayersAndExtensions& attachments);
 
     static void IncludeDefaultLayersAndExtensions(LayersAndExtensions&);
 
-    VkInstance Access() const { return instance_; }
+    VkInstance Access() const noexcept;
 
-    Instance() {}
     ~Instance();
-
 };
 
 } //vk

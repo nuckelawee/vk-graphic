@@ -7,13 +7,7 @@ struct Texture;
 namespace vk {
 
 class BufferBuilder;
-
-struct Image {
-    VkImage image;
-    VkDeviceMemory memory;
-    VkImageView view;
-    VkSampler sampler;
-};
+struct Image;
 
 class ImageBuilder {
 

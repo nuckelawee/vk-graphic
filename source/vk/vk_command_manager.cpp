@@ -2,6 +2,7 @@
 #include "vk/vk_graphic_pipeline.hpp"
 #include "vk/vk_model_storage.hpp"
 #include "vk/vk_device.hpp"
+#include "vk/vk_settings.hpp"
 
 namespace vk {
 
@@ -78,15 +79,14 @@ std::vector<VkCommandBuffer> CommandManager::CreateCommandBuffers(VkDevice devic
 
 void CommandManager::RecordDrawCommands(VkCommandBuffer& commandBuffer
     , VkFramebuffer framebuffer, VkDescriptorSet descriptorSet
-    , const Setting& setting, GraphicPipeline& pipeline
-    , ModelStorage& modelStorage) {
+    , GraphicPipeline& pipeline, ModelStorage& modelStorage) {
 
-    const VkExtent2D& extent = setting.Extent();
+    VkExtent2D extent = vk::Settings::GetInstance().Extent();
 
     vkResetCommandBuffer(commandBuffer, 0);
     beginCommand(commandBuffer);
 
-    pipeline.RenderPassBegin(commandBuffer, framebuffer, extent, setting);
+    pipeline.RenderPassBegin(commandBuffer, framebuffer);
 
     VkViewport viewport = setViewport(extent);
     VkRect2D scissor = setScissor(extent);

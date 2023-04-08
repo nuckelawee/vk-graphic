@@ -1,11 +1,15 @@
 #pragma once
 
 #include <algorithm>
-#include "vk_image_builder.hpp"
+
+#include "vk_device.hpp"
+#include "vk_image.hpp"
 
 class Surface;
 
 namespace vk {
+
+class ImageBuilder;
 
 class Swapchain {
 
@@ -22,36 +26,29 @@ class Swapchain {
 
 public:
 
-    void Create(const Device& device, Surface& surface, ImageBuilder& imageBuilder
-        , Setting& setting);
+    void Create(const Device& device, const Surface& surface
+        , ImageBuilder& imageBuilder);
+
     void CreateFramebuffers(VkRenderPass renderPass);
-    void Recreate(const Device& device, Surface& surface
-        , ImageBuilder& imageBuilder, Setting& setting, VkRenderPass renderPass);
 
-    void CleanUp();
+    void Recreate(const Device& device, const Surface& surface
+        , ImageBuilder& imageBuilder, VkRenderPass renderPass);
 
-    const VkSwapchainKHR& Access() const { return swapchain_; }
-    VkSwapchainKHR& Access() { return swapchain_; }
+    void CleanUp() noexcept;
 
-    VkFormat AccessImageFormat() const { return imageFormat_; }
-
-    VkExtent2D AccessExtent() const { return extent_; }
-
-    VkFramebuffer AccessFramebuffer(size_t index) const 
-    { return framebuffers_[index]; }
+    VkSwapchainKHR Access() const noexcept;
+    VkFormat AccessImageFormat() const noexcept;
+    VkFramebuffer AccessFramebuffer(size_t index) const noexcept;
 
 private:
     void CreateImages(ImageBuilder& imageBuidler);
 
     int32_t ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>& 
-        formats) const;
+        formats) const noexcept;
     int32_t ChooseSuitablePresent(const std::vector<VkPresentModeKHR>& 
-        presentModes) const;
-    VkExtent2D ChooseSuitableExtent(Surface& surface) const;
-
-public:
-    Swapchain() {}
-    ~Swapchain() {}
+        presentModes) const noexcept;
+    VkExtent2D ChooseSuitableExtent(
+        const Surface& surface) const noexcept;
 
 };
 

@@ -3,6 +3,7 @@
 #include "vk_mesh_loader.hpp"
 #include "vk_texture_loader.hpp"
 #include "vk_model.hpp"
+#include "vk_image.hpp"
 
 #include <unordered_map>
 

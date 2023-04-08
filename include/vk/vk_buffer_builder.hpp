@@ -1,15 +1,9 @@
 #pragma once
 
 #include "vk_device.hpp"
+#include "vk_buffer.hpp"
 
 namespace vk {
-
-struct Buffer {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-
-    void Destroy(VkDevice device);
-};
 
 class BufferBuilder {
     

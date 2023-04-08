@@ -3,21 +3,23 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <vector>
+
 namespace input {
 
 class Keyboard {
 
-    bool pKeys_[1024];
+    std::vector<bool> keys_;
 
 public:
 
+    Keyboard();
+
     void KeyInput(int key, int scancode, int action
-        , int modes);
+        , int modes) noexcept;
 
-    const bool* Keys() const;
+    const std::vector<bool>& Keys() const noexcept;
 
-    Keyboard() {}
-    ~Keyboard() {}
 };
 
 } // input

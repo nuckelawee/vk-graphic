@@ -1,10 +1,13 @@
-#include "glfw_window.hpp"
+#include "vk/vk_surface.hpp"
 #include "vk/vk_swapchain.hpp"
+#include "vk/vk_exception.hpp"
+#include "vk/vk_settings.hpp"
+#include "vk/vk_image_builder.hpp"
 
 namespace vk {
 
 int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
-    formats) const {
+    formats) const noexcept {
 
     for(size_t i = 0; i < formats.size(); i++) {
         if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB
@@ -15,7 +18,7 @@ int32_t Swapchain::ChooseSuitableFormat(const std::vector<VkSurfaceFormatKHR>&
 } 
 
 int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
-    presentModes) const {
+    presentModes) const noexcept {
     
     for(size_t i = 0; i < presentModes.size(); i++) {
         if(presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -24,21 +27,22 @@ int32_t Swapchain::ChooseSuitablePresent(const std::vector<VkPresentModeKHR>&
     return -1;
 }
 
-VkExtent2D Swapchain::ChooseSuitableExtent(Surface& surface) const {
+VkExtent2D Swapchain::ChooseSuitableExtent(
+    const Surface& surface) const noexcept {
 
     VkSurfaceCapabilitiesKHR capabilities = surface.Capabilities(
         device_.AccessGpu()).capabilities;
     if(capabilities.currentExtent.width == UINT32_MAX) {
-        ErrorManager::Validate(ERROR_TYPE_WARNING, "Screen coordinates don't correspond "\
-            "to pixels", "Extent choosing");
+        std::cerr << "Screen coordinates don't correspond to pixels";
         return capabilities.currentExtent;
     }
     int width, height;
-    glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+    surface.GetFramebufferSize(width, height);
     VkExtent2D extent = {
         static_cast<uint32_t>(width),
         static_cast<uint32_t>(height)
     };
+
     extent.width = std::clamp(extent.width, capabilities.minImageExtent.width
         , capabilities.maxImageExtent.width);
     extent.height = std::clamp(extent.height, capabilities.minImageExtent.height
@@ -46,34 +50,32 @@ VkExtent2D Swapchain::ChooseSuitableExtent(Surface& surface) const {
     return extent;
 }
 
-void Swapchain::Create(const Device& device, Surface& surface
-    , ImageBuilder& imageBuilder, Setting& setting) {
+void Swapchain::Create(const Device& device, const Surface& surface
+    , ImageBuilder& imageBuilder) {
 
     device_ = device;
-    SurfaceDetails surfaceCapabilities = surface.Capabilities(device_.AccessGpu());
+    SurfaceDetails surfaceDetails = surface.Capabilities(device_.AccessGpu());
 
     QueueFamilies queueFamilies = device_.AccessQueues();
     VkSurfaceFormatKHR surfaceFormat;
     VkPresentModeKHR presentMode;
     int32_t index;
 
-    index = ChooseSuitableFormat(surfaceCapabilities.formats);
-    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, index == -1)
-        , "Failed to find suitable surface format"
-        , "Swapchain creation");
-    surfaceFormat = surfaceCapabilities.formats[index];
-
-    index = ChooseSuitablePresent(
-        surfaceCapabilities.presentModes);
+    index = ChooseSuitableFormat(surfaceDetails.formats);
     if(index == -1) {
-        ErrorManager::Validate(ERROR_TYPE_WARNING, "Failed to find suitable present mode"
-            , "Swapchain creation");
-        index = 0;
+        throw std::runtime_error("Failed to find suitable surface format");
     }
-    presentMode = surfaceCapabilities.presentModes[index];
+    surfaceFormat = surfaceDetails.formats[index];
+
+    index = ChooseSuitablePresent(surfaceDetails.presentModes);
+    if(index == -1) {
+        throw std::runtime_error("Failed to find suitable present mode");
+    }
+
+    presentMode = surfaceDetails.presentModes[index];
 
     extent_ = ChooseSuitableExtent(surface);
-    setting.Extent() = extent_;
+    vk::Settings::GetInstance().ChangeExtent(extent_);
 
     imageFormat_ = surfaceFormat.format;
     
@@ -85,7 +87,7 @@ void Swapchain::Create(const Device& device, Surface& surface
     swapchainInfo.imageExtent = extent_;
     swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainInfo.imageArrayLayers = 1;
-    swapchainInfo.minImageCount = surfaceCapabilities.capabilities.minImageCount;
+    swapchainInfo.minImageCount = surfaceDetails.capabilities.minImageCount;
 
     uint32_t pIndices[2] = { 
         queueFamilies.graphic.index.value(),
@@ -102,15 +104,16 @@ void Swapchain::Create(const Device& device, Surface& surface
     }
     swapchainInfo.presentMode = presentMode;
     swapchainInfo.preTransform
-        = surfaceCapabilities.capabilities.currentTransform;
+        = surfaceDetails.capabilities.currentTransform;
     swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainInfo.clipped = VK_FALSE;
     swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
     
     VkResult result = vkCreateSwapchainKHR(device_.Access(), &swapchainInfo
         , nullptr, &swapchain_);
-    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
-        , "Failed to create swapchain", "Swapchain creation");
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create swapchain", result);
+    }
     
     CreateImages(imageBuilder);
 }
@@ -121,7 +124,9 @@ void Swapchain::CreateImages(ImageBuilder& imageBuilder) {
     images_.resize(imageCount);
     VkResult result = vkGetSwapchainImagesKHR(device_.Access(), swapchain_
         , &imageCount, images_.data());
-    ErrorManager::Validate(result, "Swapchain images creation");
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to get swapchain images", result);
+    }
 
     imageViews_.resize(imageCount);
     
@@ -149,28 +154,30 @@ void Swapchain::CreateFramebuffers(VkRenderPass renderPass) {
         framebufferInfo.layers = 1;
         VkResult result = vkCreateFramebuffer(device_.Access(), &framebufferInfo
             , nullptr, &(framebuffers_[i]));
-        ErrorManager::Validate(result, "Framebuffer creation");
+        if(result != VK_SUCCESS) {
+            throw Exception("Failed to create framebuffer", result);
+        }
     }
 }
 
-void Swapchain::Recreate(const Device& device, Surface& surface
-    , ImageBuilder& imageBuilder, Setting& setting, VkRenderPass renderPass) {
+void Swapchain::Recreate(const Device& device, const Surface& surface
+    , ImageBuilder& imageBuilder, VkRenderPass renderPass) {
 
     int width = 0, height = 0;
-    glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+    surface.GetFramebufferSize(width, height);
     while(width == 0 || height == 0) {
-        glfwGetFramebufferSize(&surface.AccessGLFW(), &width, &height);
+        surface.GetFramebufferSize(width, height);
         glfwWaitEvents();
     }
 
     vkDeviceWaitIdle(device_.Access());
 
     CleanUp();
-    Create(device, surface, imageBuilder, setting);
+    Create(device, surface, imageBuilder);
     CreateFramebuffers(renderPass);
 }
 
-void Swapchain::CleanUp() {
+void Swapchain::CleanUp() noexcept {
     VkDevice device = device_.Access();
     vkDestroyImageView(device, depthImage_.view, nullptr);
     vkDestroyImage(device, depthImage_.image, nullptr);
@@ -184,5 +191,14 @@ void Swapchain::CleanUp() {
     }
     vkDestroySwapchainKHR(device, swapchain_, nullptr);
 }
+
+VkSwapchainKHR Swapchain::Access() const noexcept
+{ return swapchain_; }
+
+VkFormat Swapchain::AccessImageFormat() const noexcept
+{ return imageFormat_; }
+
+VkFramebuffer Swapchain::AccessFramebuffer(size_t index) const noexcept
+{ return framebuffers_[index]; }
 
 } // vk

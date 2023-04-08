@@ -3,12 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "vk_descriptor_pool.hpp"
-
-struct MvpMatrix {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 projection;
-};
+#include "vk_settings.hpp"
 
 namespace vk {
 
@@ -18,7 +13,7 @@ class Image;
 class DescriptorSet {
 
     VkDescriptorSetLayout descriptorSetLayout_;
-    VkDescriptorSet descriptorSets_[vk::Setting::frames];
+    VkDescriptorSet descriptorSets_[vk::Settings::frames];
 
 public:
     

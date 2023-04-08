@@ -1,25 +1,22 @@
 #include "vk/vk_graphic_pipeline.hpp"
 #include "vk/vk_descriptor_set.hpp"
+#include "vk/vk_pipeline_states.hpp"
+#include "vk/vk_vertex_binding.hpp"
+#include "vk/vk_settings.hpp"
+#include "vk/vk_exception.hpp"
 
 namespace vk {
 
-const VkPipelineLayout& GraphicPipeline::AccessLayout() const
-{ return pipelineLayout_; }
-VkPipelineLayout& GraphicPipeline::AccessLayout()
+VkPipelineLayout GraphicPipeline::AccessLayout() const noexcept
 { return pipelineLayout_; }
 
-const VkPipeline& GraphicPipeline::Access() const
-{ return pipeline_; }
-VkPipeline& GraphicPipeline::Access()
+VkPipeline GraphicPipeline::Access() const noexcept
 { return pipeline_; }
 
-const VkRenderPass& GraphicPipeline::AccessRenderPass() const
-{ return renderPass_; }
-VkRenderPass& GraphicPipeline::AccessRenderPass()
+VkRenderPass GraphicPipeline::AccessRenderPass() const noexcept
 { return renderPass_; }
 
-VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
-    , const std::string& code) {
+VkShaderModule GraphicPipeline::CreateShaderModule(const std::string& code) const {
 
     VkShaderModule shaderModule;
     VkShaderModuleCreateInfo shaderInfo {};
@@ -27,13 +24,14 @@ VkShaderModule GraphicPipeline::CreateShaderModule(const VkDevice& device
     shaderInfo.codeSize = code.size();
     shaderInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
-    VkResult result = vkCreateShaderModule(device, &shaderInfo, nullptr, &shaderModule);
-    ErrorManager::Validate(result, "Shader module creation");
+    VkResult result = vkCreateShaderModule(device_, &shaderInfo, nullptr, &shaderModule);
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create shader module", result);
+    }
     return shaderModule;
 }
 
-PipelineStates GraphicPipeline::DescribePipelineStates(
-    const Swapchain& swapchain, void *pUserData) {
+PipelineStates describePipelineStates() {
 
     VkPipelineVertexInputStateCreateInfo inputInfo {};
     VkPipelineDynamicStateCreateInfo dynamicStateInfo {};
@@ -83,15 +81,16 @@ PipelineStates GraphicPipeline::DescribePipelineStates(
     assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
+    const VkExtent2D& extent = vk::Settings::GetInstance().Extent();
     viewport.x = 0.0f;
     viewport.y = 0.0f; 
-    viewport.width = static_cast<float>(swapchain.AccessExtent().width);
-    viewport.height = static_cast<float>(swapchain.AccessExtent().height);
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     scissor.offset = { 0, 0 };
-    scissor.extent = swapchain.AccessExtent();
+    scissor.extent = extent;
         
     viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportInfo.viewportCount = 1;
@@ -157,11 +156,11 @@ PipelineStates GraphicPipeline::DescribePipelineStates(
     return states;
 }
 
-void GraphicPipeline::CreateRenderPass(const Device& device
-    , const Swapchain& swapchain, void *pUserData) {
+void GraphicPipeline::CreateRenderPass(VkFormat depthFormat
+    , VkFormat imageFormat) {
 
     VkAttachmentDescription colorAttachment {};
-    colorAttachment.format = swapchain.AccessImageFormat();
+    colorAttachment.format = imageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -175,10 +174,7 @@ void GraphicPipeline::CreateRenderPass(const Device& device
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentDescription depthAttachment {};
-    depthAttachment.format = device.FindSupportedFormat(
-        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT
-        , VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL
-        , VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    depthAttachment.format = depthFormat;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -223,19 +219,19 @@ void GraphicPipeline::CreateRenderPass(const Device& device
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &subpassDependency;
 
-    VkResult result = vkCreateRenderPass(device.Access(), &renderPassInfo, nullptr
+    VkResult result = vkCreateRenderPass(device_, &renderPassInfo, nullptr
     , &renderPass_);
-    ErrorManager::Validate(result, "Render pass creation");
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create renderpass", result);
+    }
 }
 
 void GraphicPipeline::Create(const Device& device
     , const Swapchain& swapchain
     , const std::vector<std::string>& shaderFiles
-    , const DescriptorSet& descriptorSet
-    , std::function<PipelineStates(const Swapchain& swapchain
-    , void *pUserData)> fillPipelineStates) {
+    , const DescriptorSet& descriptorSet) {
 
-    VkDevice logicDevice = device.Access();
+    device_ = device.Access();
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
     VkShaderModule geomShaderModule;
@@ -244,14 +240,14 @@ void GraphicPipeline::Create(const Device& device
     const std::string vertCode = FileManager::ReadFile(shaderFiles[0]
         , std::ios::ate | std::ios::binary);
     const std::string fragCode = FileManager::ReadFile(shaderFiles[1]
-        , std::ios::ate | std::ios::binary);
+        , std::ios::ate | std::ios::binary);    
 
-    vertShaderModule = CreateShaderModule(logicDevice, vertCode);
-    fragShaderModule = CreateShaderModule(logicDevice, fragCode);
+    vertShaderModule = CreateShaderModule(vertCode);
+    fragShaderModule = CreateShaderModule(fragCode);
     if(geomShaderUse == true) {
         const std::string geomCode = FileManager::ReadFile(shaderFiles[2]
             , std::ios::ate | std::ios::binary);
-        geomShaderModule = CreateShaderModule(logicDevice, geomCode);
+        geomShaderModule = CreateShaderModule(geomCode);
     }
 
     VkPipelineShaderStageCreateInfo vertStageInfo {};
@@ -278,7 +274,12 @@ void GraphicPipeline::Create(const Device& device
         shaderStages.push_back(geomStageInfo);
     }
 
-    CreateRenderPass(device, swapchain, nullptr);
+    VkFormat depthFormat = device.FindSupportedFormat(
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT
+        , VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL
+        , VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+ 
+    CreateRenderPass(depthFormat, swapchain.AccessImageFormat());
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -287,11 +288,13 @@ void GraphicPipeline::Create(const Device& device
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-    VkResult result = vkCreatePipelineLayout(logicDevice, &pipelineLayoutInfo
+    VkResult result = vkCreatePipelineLayout(device_, &pipelineLayoutInfo
         , nullptr, &pipelineLayout_);
-    ErrorManager::Validate(result, "Pipeline creation");
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create pipeline layout", result);
+    }
 
-    PipelineStates states = fillPipelineStates(swapchain, nullptr);
+    PipelineStates states = describePipelineStates();
 
     VkGraphicsPipelineCreateInfo pipelineInfo {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -311,46 +314,34 @@ void GraphicPipeline::Create(const Device& device
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
-    result = vkCreateGraphicsPipelines(logicDevice, VK_NULL_HANDLE, 1
+    result = vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1
         , &pipelineInfo, nullptr, &pipeline_);
-    ErrorManager::Validate(result, "Graphic pipeline creation");
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create graphic pipeline", result);
+    }
    
-    vkDestroyShaderModule(logicDevice, vertShaderModule, nullptr);
-    vkDestroyShaderModule(logicDevice, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device_, vertShaderModule, nullptr);
+    vkDestroyShaderModule(device_, fragShaderModule, nullptr);
     if(geomShaderUse == true) {
-        vkDestroyShaderModule(logicDevice, geomShaderModule, nullptr);
+        vkDestroyShaderModule(device_, geomShaderModule, nullptr);
     }
 }
 
-VkRenderPassBeginInfo GraphicPipeline::RenderPassBegin(const Setting& setting
-    , const Swapchain& swapchain) {
-
-    VkRenderPassBeginInfo renderPassInfo {};
-
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass_;
-    renderPassInfo.framebuffer = swapchain.AccessFramebuffer(setting.CurrentFrame());
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = swapchain.AccessExtent();
-    renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues = setting.ClearValues();
-
-    return renderPassInfo;
-}
-
 void GraphicPipeline::RenderPassBegin(VkCommandBuffer commandBuffer
-    , VkFramebuffer framebuffer, VkExtent2D extent
-    , const Setting& setting) {
+    , VkFramebuffer framebuffer) noexcept {
 
     VkRenderPassBeginInfo renderPassInfo {};
+
+    const VkClearValue* clearValues = vk::Settings::GetInstance().ClearValues().data();
+    uint32_t clearValueCount = vk::Settings::GetInstance().ClearValues().size();
 
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass_;
     renderPassInfo.framebuffer = framebuffer;
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = extent;
-    renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues = setting.ClearValues();
+    renderPassInfo.renderArea.extent = vk::Settings::GetInstance().Extent();
+    renderPassInfo.clearValueCount = clearValueCount;
+    renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo
         , VK_SUBPASS_CONTENTS_INLINE);
@@ -358,10 +349,10 @@ void GraphicPipeline::RenderPassBegin(VkCommandBuffer commandBuffer
         , pipeline_);
 }
 
-void GraphicPipeline::Destroy(const Device& device) {
-    vkDestroyPipeline(device.Access(), pipeline_, nullptr);
-    vkDestroyPipelineLayout(device.Access(), pipelineLayout_, nullptr);
-    vkDestroyRenderPass(device.Access(), renderPass_, nullptr);
+void GraphicPipeline::Destroy() noexcept {
+    vkDestroyPipeline(device_, pipeline_, nullptr);
+    vkDestroyPipelineLayout(device_, pipelineLayout_, nullptr);
+    vkDestroyRenderPass(device_, renderPass_, nullptr);
 }
 
 } // vk

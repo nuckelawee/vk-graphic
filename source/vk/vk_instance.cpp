@@ -1,17 +1,17 @@
 #include "vk/vk_instance.hpp"
+#include "vk/vk_settings.hpp"
+#include "vk/vk_exception.hpp"
+#include "global_settings.hpp"
 
 namespace vk {
 
-void Instance::Create(const AppSetting& setting,
-    const LayersAndExtensions& attachments) {
+void Instance::Create(const LayersAndExtensions& attachments) {
     
-    VkResult result;
-
     VkApplicationInfo applicationInfo {};
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    applicationInfo.pApplicationName = setting.Application().c_str();
+    applicationInfo.pApplicationName = GlobalSettings::GetInstance().applicationName;
     applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    applicationInfo.pEngineName = setting.Vulkan().Engine().c_str();
+    applicationInfo.pEngineName = vk::Settings::GetInstance().engineName;
     applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     applicationInfo.apiVersion = VK_API_VERSION_1_0;
 
@@ -32,8 +32,10 @@ void Instance::Create(const AppSetting& setting,
         DebugMessenger::PopulateDebugMessengerInfo();
     instanceInfo.pNext = &debugMessengerInfo;
 #endif
-    result = vkCreateInstance(&instanceInfo, nullptr, &instance_);
-    ErrorManager::Validate(result, "Instance creation");
+    VkResult result = vkCreateInstance(&instanceInfo, nullptr, &instance_);
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create instance", result);
+    } 
     debugMessenger_.Setup(instance_);
 }
 
@@ -41,25 +43,28 @@ void Instance::IncludeDefaultLayersAndExtensions(
     LayersAndExtensions& attachments) {
 
     uint32_t glfwExtensionCount = 0;
-    const char** ppGlfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    std::vector<const char*> glfwExtensions(ppGlfwExtensions
-        , ppGlfwExtensions + glfwExtensionCount);
-
-    glfwExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    VkResult result = attachments.RequestInstanceExtensions(glfwExtensions);
-    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
-        , "GLFW extensions doesn't support", "Include layers and extensions");
+    std::vector<const char*> requestingExtensions(glfwExtensions
+        , glfwExtensions + glfwExtensionCount);
+    requestingExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    VkResult result = attachments.RequestInstanceExtensions(requestingExtensions);
+    if(result != VK_SUCCESS) {
+        throw Exception("GLFW extensions doesn't support", result); 
+    }
 
 #ifdef DEBUG
     const std::vector<const char*> validationLayer =
     { "VK_LAYER_KHRONOS_validation" };
 
     result = attachments.RequestInstanceLayers(validationLayer);
-    ErrorManager::Validate(Error(ERROR_TYPE_UNSOLVABLE, result != VK_SUCCESS)
-        , "Validation layer doesn't active", "Include layers and extensions");
+    if(result != VK_SUCCESS) {
+        throw Exception("Validation layer doesn't active", result);
+    }
 #endif
 }
+
+VkInstance Instance::Access() const noexcept { return instance_; }
 
 Instance::~Instance() {
     debugMessenger_.Destroy(instance_, nullptr);

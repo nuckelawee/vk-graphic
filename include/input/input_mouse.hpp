@@ -10,22 +10,16 @@ class Mouse {
     float xPrevPos_ = 0.0f;
     float yPrevPos_ = 0.0f;
 
-    //float deltaXPos_;
-    //float deltaYPos_;
-    
 public:
 
-    void CursorPosition(float x, float y);
-    void Button(int button, int action, int mods);
+    void CursorPosition(float x, float y) noexcept;
+    void Button(int button, int action, int mods) noexcept;
 
-    float XPosition() const;
-    float YPosition() const;
+    float XPosition() const noexcept;
+    float YPosition() const noexcept;
 
-    float DeltaXPos() const;
-    float DeltaYPos() const;
-
-    Mouse() {}
-    ~Mouse() {}
+    float DeltaXPos() const noexcept;
+    float DeltaYPos() const noexcept;
 
 };
 

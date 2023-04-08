@@ -1,13 +1,16 @@
 #include "input/input_keyboard.hpp"
+#include <iostream>
 
 namespace input {
 
-void Keyboard::KeyInput(int key, int scancode, int action, int modes) {
-    pKeys_[key] = (action == GLFW_PRESS || action == GLFW_REPEAT);
+Keyboard::Keyboard() : keys_(1024) {}
+
+void Keyboard::KeyInput(int key, int scancode, int action, int modes) noexcept {
+    keys_[key] = (action == GLFW_PRESS || action == GLFW_REPEAT);
 }
 
-const bool* Keyboard::Keys() const {
-    return pKeys_;
+const std::vector<bool>& Keyboard::Keys() const noexcept {
+    return keys_;
 }
 
 

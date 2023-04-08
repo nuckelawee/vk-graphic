@@ -1,6 +1,7 @@
 #include "vk/vk_descriptor_set.hpp"
-#include "vk/vk_image_builder.hpp"
-#include "vk/vk_buffer_builder.hpp"
+#include "vk/vk_image.hpp"
+#include "vk/vk_buffer.hpp"
+#include "mvp_matrix.hpp"
 
 namespace vk {
 
@@ -39,13 +40,13 @@ void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
 }
 
 void DescriptorSet::Allocate(const Device& device, const DescriptorPool& pool) {
-    VkDescriptorSetLayout pSetLayouts[vk::Setting::frames] 
+    VkDescriptorSetLayout setLayouts[vk::Settings::frames] 
         = { descriptorSetLayout_, descriptorSetLayout_ };
     VkDescriptorSetAllocateInfo descriptorInfo {};
     descriptorInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorInfo.descriptorPool = pool.Access();
-    descriptorInfo.descriptorSetCount = vk::Setting::frames;
-    descriptorInfo.pSetLayouts = pSetLayouts;
+    descriptorInfo.descriptorSetCount = vk::Settings::frames;
+    descriptorInfo.pSetLayouts = setLayouts;
 
     VkResult result = vkAllocateDescriptorSets(device.Access(), &descriptorInfo
         , descriptorSets_);
@@ -55,7 +56,7 @@ void DescriptorSet::Allocate(const Device& device, const DescriptorPool& pool) {
 void DescriptorSet::UpdateDescriptorSet(const Device& device
     , Buffer *ubos, Image& image) {
 
-    for(size_t i = 0; i < vk::Setting::frames; i++) {
+    for(size_t i = 0; i < vk::Settings::frames; ++i) {
         VkDescriptorBufferInfo bufferInfo {};
         bufferInfo.buffer = ubos[i].buffer;
         bufferInfo.offset = 0;
@@ -110,7 +111,7 @@ void DescriptorSet::Destroy(const Device& device
     , const DescriptorPool& pool) {
 
     vkFreeDescriptorSets(device.Access(), pool.Access()
-        , vk::Setting::frames, descriptorSets_);
+        , vk::Settings::frames, descriptorSets_);
     vkDestroyDescriptorSetLayout(device.Access(), descriptorSetLayout_, nullptr);
 }
 

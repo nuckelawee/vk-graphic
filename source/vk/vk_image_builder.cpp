@@ -1,6 +1,7 @@
 #include "vk/vk_image_builder.hpp"
 #include "vk/vk_buffer_builder.hpp"
 #include "vk/vk_command_manager.hpp"
+#include "vk/vk_image.hpp"
 #include "file_manager.hpp"
 
 namespace vk {
@@ -54,10 +55,8 @@ Image ImageBuilder::BuildImage(BufferBuilder& bufferBuilder
     VkImageView view;
     VkSampler sampler;
 
-    VkDeviceSize imageSize = texture.bytesPerPixel * texture.width * texture.height;
-
     Buffer staging = bufferBuilder.BuildBuffer(texture.pixels
-        , imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+        , texture.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
         , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     CreateImage(image, memory, texture, VK_IMAGE_TILING_OPTIMAL

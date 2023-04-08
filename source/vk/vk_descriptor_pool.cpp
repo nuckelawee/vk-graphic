@@ -1,4 +1,5 @@
 #include "vk/vk_descriptor_pool.hpp"
+#include "vk/vk_settings.hpp"
 
 namespace vk {
 
@@ -6,15 +7,15 @@ void DescriptorPool::Create(const Device& device) {
     size_t poolCount = 2;
     VkDescriptorPoolSize poolSizes[poolCount] = {};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = vk::Setting::frames;
+    poolSizes[0].descriptorCount = vk::Settings::frames;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = vk::Setting::frames;
+    poolSizes[1].descriptorCount = vk::Settings::frames;
 
     VkDescriptorPoolCreateInfo poolInfo {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = poolCount;
     poolInfo.pPoolSizes = poolSizes;
-    poolInfo.maxSets = vk::Setting::frames;
+    poolInfo.maxSets = vk::Settings::frames;
     poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     VkResult result = vkCreateDescriptorPool(device.Access(), &poolInfo

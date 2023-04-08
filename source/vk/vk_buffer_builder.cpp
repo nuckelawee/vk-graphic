@@ -137,9 +137,4 @@ void BufferBuilder::CopyBuffer(VkBuffer& source, VkBuffer& destination
         , device_.AccessQueues().transfer.queue, copyCommand);
 }
 
-void Buffer::Destroy(VkDevice device) {
-    vkDestroyBuffer(device, buffer, nullptr);
-    vkFreeMemory(device, memory, nullptr);
-}
-
 } // vk

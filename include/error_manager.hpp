@@ -3,11 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <cassert>
 #include <string>
-#include <iostream>
-
-#include "file_error.hpp"
 
 enum ErrorType { 
     ERROR_TYPE_USER, 
@@ -23,7 +19,6 @@ class Error {
 
     ErrorType type_ = ERROR_TYPE_UNKNOWN;
     VkResult vulkanStatus_ = VK_ERROR_UNKNOWN;
-    FileResult fileStatus_ = FILE_TGA_ERROR_NO_IMAGE;
     bool statement_ = true;
 
 public:
@@ -33,7 +28,6 @@ public:
     Error(ErrorType type, bool statement) : type_(type), statement_(statement) {}
     Error(ErrorType type, VkResult status) : type_(type), vulkanStatus_(status) {}
     Error(VkResult result) : type_(ERROR_TYPE_VULKAN), vulkanStatus_(result) {}
-    Error(FileResult result) : type_(ERROR_TYPE_FILE_MANAGER), fileStatus_(result) {}
 };
 
 class ErrorManager {
@@ -50,6 +44,5 @@ private:
     static void Warning(const std::string& message = "Unknown error"
         , const std::string& additional = "Unknown");
     static void VulkanError(VkResult status, const std::string& additional = "Unknown");
-    static void FileError(FileResult status, const std::string& additional = "Unknown");
     
 };

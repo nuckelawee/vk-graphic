@@ -12,18 +12,20 @@ class Controller {
     Keyboard keyboard_;
     Mouse mouse_;
 
+    bool mouseFlag_ = false;
+
 public:
 
-    void KeyInput(int key, int scancode, int action, int modes);
-    void CursorPosition(int x, int y);
-    void MouseButton(int button, int action, int mods);
-
-    void Update();
-
-    void SwitchContext(void *pContext, ContextType type);
-
     Controller() {}
-    ~Controller() {}
+    Controller(ContextType type, void* context);
+
+    void KeyInput(int key, int scancode, int action, int modes) noexcept;
+    void CursorPosition(int x, int y) noexcept;
+    void MouseButton(int button, int action, int mods) noexcept;
+
+    void Update() noexcept;
+
+    void SwitchContext(ContextType type, void* context) noexcept;
 
 };
 

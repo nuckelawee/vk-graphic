@@ -1,14 +1,14 @@
 #include "file_manager.hpp"
 #include "tga.hpp"
+#include "binary_ifstream.hpp"
+#include "texture.hpp"
 
 std::string FileManager::ReadFile(const std::string& filepath
     , std::ios_base::openmode mode) {
 
     std::ifstream file(filepath, mode);
     if(file.is_open() == false) {
-        ErrorManager::Validate(ERROR_TYPE_WARNING, "Failed to open file"
-            , filepath);
-        return "";
+        throw std::invalid_argument("Failed to open file [ " + filepath + " ]");
     }
     size_t fileSize = static_cast<size_t>(file.tellg());
     std::string code;
@@ -20,48 +20,40 @@ std::string FileManager::ReadFile(const std::string& filepath
     return code;
 }
 
-FileResult FileManager::ReadImageTga(Texture& texture, const char *filepath
+Texture FileManager::ReadImageTga(const std::string& filepath
     , bool supportAlpha) {
 
-    FILE *file = fopen(filepath, "rb");
-    if(file == nullptr) { 
-        return FILE_ERROR_OPEN_FILE;
-    }
+    BinaryIfstream file(filepath);
     
     Tga tga;
-    loadInfoAboutTga(tga, texture, file, filepath, supportAlpha);
-    FileResult result;
+    Texture texture;
+    loadInfoAboutTga(tga, texture, file, supportAlpha);
 
     switch(tga.dataType) {
     case TGA_FORMAT_NO_IMAGE:
-        result = FILE_TGA_ERROR_NO_IMAGE;    
-        break;
+        throw std::invalid_argument("File [ " + filepath + " ] doesn't contain image");
     case TGA_FORMAT_IMAGE_WITH_PALETTE:
-        result = loadColorMapImageTga(tga, texture, file, filepath);
+        loadColorMapImageTga(tga, texture, file);
         break;
     case TGA_FORMAT_TRUE_COLOR_IMAGE:
-        result = loadTrueColorImageTga(tga, texture, file, filepath);
+        loadTrueColorImageTga(tga, texture, file);
         break;
     case TGA_FORMAT_RLE_IMAGE_WITH_PALETTE:
-        result = loadRleColorMapImageTga(tga, texture, file, filepath);
+        loadRleColorMapImageTga(tga, texture, file);
         break;
     case TGA_FORMAT_RLE_TRUE_COLOR_IMAGE:
-        result = loadRleTrueColorImageTga(tga, texture, file, filepath);
+        loadRleTrueColorImageTga(tga, texture, file);
         break;
     case TGA_FORMAT_MONOCHROME_IMAGE:
     case TGA_FORMAT_RLE_MONOCHROME_IMAGE:
-        result = FILE_TGA_ERROR_NOT_SUPPORT;
-        goto EXIT;
+        throw std::invalid_argument("This type of tga doesn't support [ " + filepath + " ]");
     default:
-        result = FILE_TGA_ERROR_NOT_TGA;
-        goto EXIT;
+        throw std::invalid_argument("This file [ " + filepath + " ] is not tga");
     }
     if((tga.description & (1 << 5)) == 0) {
         flipTgaImage(texture);
     }
-EXIT:
-    fclose(file);
-    return result;
+    return texture;
 }
 
 void flipTgaImage(Texture& texture) {
@@ -75,11 +67,10 @@ void flipTgaImage(Texture& texture) {
     }
 }
 
-FileResult loadColorMapImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *filepath) {
+void loadColorMapImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file) {
 
-    FileResult result = allocateImageMemoryTga(tga, texture, file);
-    if(result != FILE_SUCCESS) { return result; } 
+    allocateImageMemoryTga(tga, texture, file);
 
     uint32_t pixelCount = tga.width * tga.height;
     uint32_t currentByte = 0;
@@ -87,9 +78,7 @@ FileResult loadColorMapImageTga(Tga& tga, Texture& texture, FILE *file
     unsigned char index;
     
     for(size_t currentPixel = 0; currentPixel < pixelCount; currentPixel++) {
-        if(fread(&index, sizeof(unsigned char), 1, file) == 0) {
-            return FILE_ERROR_TO_READ;
-        }
+        file.Fread(&index, sizeof(unsigned char), 1);
         texture.pixels[currentByte] = tga.colorMap.data[index * bytesPerElement + 2];
         texture.pixels[currentByte+1] = tga.colorMap.data[index * bytesPerElement + 1];
         texture.pixels[currentByte+2] = tga.colorMap.data[index * bytesPerElement];
@@ -101,14 +90,12 @@ FileResult loadColorMapImageTga(Tga& tga, Texture& texture, FILE *file
         }
         currentByte += texture.bytesPerPixel;
     }
-    return FILE_SUCCESS;
 }
 
-FileResult loadRleColorMapImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *filepath) {
+void loadRleColorMapImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file) {
 
-    FileResult result = allocateImageMemoryTga(tga, texture, file);
-    if(result != FILE_SUCCESS) { return result; } 
+    allocateImageMemoryTga(tga, texture, file);
 
     uint32_t pixelCount = tga.width * tga.height;
     uint32_t currentPixel = 0;
@@ -118,15 +105,11 @@ FileResult loadRleColorMapImageTga(Tga& tga, Texture& texture, FILE *file
     unsigned char chunk;
 
     while(currentPixel < pixelCount) {
-        if(fread(&chunk, sizeof(unsigned char), 1, file) == 0) {
-            return FILE_ERROR_TO_READ;
-        }
+        file.Fread(&chunk, sizeof(unsigned char), 1);
         char isCompressed = chunk & 128;
         unsigned char chunkPixels = chunk & 127;
         if(isCompressed) {
-            if(fread(&index, sizeof(unsigned char), 1, file) == 0) {
-                return FILE_ERROR_TO_READ;
-            }
+            file.Fread(&index, sizeof(unsigned char), 1);
             for(size_t i = 0; i <= chunkPixels; i++) {
                 texture.pixels[currentByte] = tga.colorMap.data[index * bytesPerElement+2];
                 texture.pixels[currentByte+1] = tga.colorMap.data[index * bytesPerElement+1];
@@ -142,10 +125,7 @@ FileResult loadRleColorMapImageTga(Tga& tga, Texture& texture, FILE *file
             }
        } else {
             for(size_t i = 0; i <= chunkPixels; i++) {
-                if(fread(&index, sizeof(unsigned char), 1, file) == 0) {
-                    return FILE_ERROR_TO_READ;
-                }
-
+                file.Fread(&index, sizeof(unsigned char), 1);
                 texture.pixels[currentByte] = tga.colorMap.data[index * bytesPerElement+2];
                 texture.pixels[currentByte+1] = tga.colorMap.data[index * bytesPerElement+1];
                 texture.pixels[currentByte+2] = tga.colorMap.data[index * bytesPerElement];
@@ -160,23 +140,19 @@ FileResult loadRleColorMapImageTga(Tga& tga, Texture& texture, FILE *file
             }
         }        
     }
-    return FILE_SUCCESS;
 }
 
-FileResult loadTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char *filepath) {
+void loadTrueColorImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file) {
 
-    FileResult result = allocateImageMemoryTga(tga, texture, file);
-    if(result != FILE_SUCCESS) { return result; } 
+    allocateImageMemoryTga(tga, texture, file);
 
     if(tga.fakeAlpha) {
         unsigned char colorBuffer[3];
         uint32_t pixelCount = tga.width * tga.height;
         uint32_t currentByte = 0;
         for(size_t currentPixel = 0; currentPixel < pixelCount; currentPixel++) {
-            if(fread(colorBuffer, 1, 3, file) == 0) {
-                return FILE_ERROR_TO_READ;
-            }
+            file.Fread(colorBuffer, 1, 3);
             texture.pixels[currentByte] = colorBuffer[2]; 
             texture.pixels[currentByte+1] = colorBuffer[1]; 
             texture.pixels[currentByte+2] = colorBuffer[0]; 
@@ -184,18 +160,14 @@ FileResult loadTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
             currentByte += texture.bytesPerPixel;
         }
     } else {
-        if(fread(texture.pixels, 1, tga.imageBytesSize, file) != tga.imageBytesSize) {
-            return FILE_ERROR_TO_READ;    
-        }
+        file.Fread(texture.pixels, 1, tga.imageBytesSize);
     } 
-    return FILE_SUCCESS;
 }
 
-FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
-    , const char* filepath) {
+void loadRleTrueColorImageTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file) {
 
-    FileResult result = allocateImageMemoryTga(tga, texture, file);
-    if(result != FILE_SUCCESS) { return result; } 
+    allocateImageMemoryTga(tga, texture, file);
 
     uint32_t pixelCount = tga.width * tga.height;
     uint32_t currentPixel = 0;
@@ -208,15 +180,12 @@ FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
 
     while (currentPixel < pixelCount) {
         unsigned char chunkHeader = 0;
-        if(fread(&chunkHeader, sizeof(unsigned char), 1, file) == 0) {
-            return FILE_ERROR_TO_READ;    
-        }
+        file.Fread(&chunkHeader, sizeof(unsigned char), 1);
+
         char isCompressed = chunkHeader & 128;
         unsigned char chunkPixels = chunkHeader & 127;
         if(isCompressed) {
-            if(fread(colorBuffer, 1, colorBufferSize, file) != colorBufferSize) {
-                return FILE_ERROR_TO_READ;   
-            }
+            file.Fread(colorBuffer, 1, colorBufferSize);
             for(size_t i = 0; i <= chunkPixels; i++) {
                 texture.pixels[currentByte] = colorBuffer[2];
                 texture.pixels[currentByte+1] = colorBuffer[1];
@@ -231,8 +200,7 @@ FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
             }
        } else {
             for(size_t i = 0; i <= chunkPixels; i++) {
-                if(fread(colorBuffer, 1, colorBufferSize, file) != colorBufferSize)
-                { return FILE_ERROR_TO_READ; }
+                file.Fread(colorBuffer, 1, colorBufferSize);
                 texture.pixels[currentByte] = colorBuffer[2];
                 texture.pixels[currentByte+1] = colorBuffer[1];
                 texture.pixels[currentByte+2] = colorBuffer[0];
@@ -246,11 +214,10 @@ FileResult loadRleTrueColorImageTga(Tga& tga, Texture& texture, FILE *file
             }
         }
     }
-    return FILE_SUCCESS;
 }
 
 void loadColorMapInfoTga(Tga& tga, Texture& texture, unsigned char *head
-    , FILE *file) {
+    , const BinaryIfstream& file) {
 
     TgaColorMapInfo& colorMap = tga.colorMap;
     colorMap.type = head[1];
@@ -268,22 +235,20 @@ void loadColorMapInfoTga(Tga& tga, Texture& texture, unsigned char *head
     }
 }
 
-FileResult loadInfoAboutTga(Tga& tga, Texture& texture
-    , FILE *file, const char *filepath, bool supportAlpha) {
+void loadInfoAboutTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file, bool supportAlpha) {
 
     unsigned char headSize = 18;
     unsigned char head[headSize];
-    if(fread(head, sizeof(unsigned char), headSize, file) == 0) {
-        return FILE_ERROR_TO_READ; 
-    }
+    file.Fread(head, sizeof(unsigned char), headSize);
+
     tga.dataType = head[2];
     tga.width = *((uint16_t*)(head+12));
     tga.height = *((uint16_t*)(head+14));
     tga.bitsPerPixel = head[16];
     tga.description = head[17]; 
 
-    FileResult result = identifierTga(head[0], file);
-    if(result != FILE_SUCCESS) { return result; }
+    identifierTga(head[0], file);
 
     if(supportAlpha && tga.bitsPerPixel != 32) {
         tga.fakeAlpha = true;
@@ -295,42 +260,33 @@ FileResult loadInfoAboutTga(Tga& tga, Texture& texture
         if(tga.bitsPerPixel == 24) {
             texture.format = VK_FORMAT_R8G8B8_SRGB;
         } else if(tga.bitsPerPixel == 32) {
-            texture.format = VK_FORMAT_R8G8B8A8_SRGB;    
+            texture.format = VK_FORMAT_R8G8B8A8_SRGB;
         }
     }
     loadColorMapInfoTga(tga, texture, head, file);
     
+    tga.imageBytesSize = texture.bytesPerPixel * tga.width * tga.height;
     texture.width = tga.width;
     texture.height = tga.height;
-    tga.imageBytesSize = texture.bytesPerPixel * tga.width * tga.height;
-    return FILE_SUCCESS;
+    texture.size = tga.imageBytesSize;
 }
 
-FileResult identifierTga(unsigned char idLength, FILE *file) {
-    if(idLength == 0) { return FILE_SUCCESS; }
+void identifierTga(unsigned char idLength, const BinaryIfstream& file) {
+    if(idLength == 0) { return; }
     unsigned char id[idLength];
-    if(fread(id, sizeof(unsigned char), idLength, file) == 0) {
-        return FILE_ERROR_TO_READ;
-    }
-    return FILE_SUCCESS;
+    file.Fread(id, sizeof(unsigned char), idLength);
 }
 
-FileResult allocateImageMemoryTga(Tga& tga, Texture& texture, FILE *file) {
-   if(tga.width <= 0 || tga.height <= 0) {
-        return FILE_TGA_ERROR_FILE_IS_CORRUPTED;
+void allocateImageMemoryTga(Tga& tga, Texture& texture
+    , const BinaryIfstream& file) {
+    if(tga.width <= 0 || tga.height <= 0) {
+        throw std::invalid_argument("File [  ] is corrupted");
     }
-
     size_t colorSize = tga.colorMap.length * (tga.colorMap.bitsPerElement/8);
     texture.pixels = new unsigned char[tga.imageBytesSize + colorSize];
-    if(texture.pixels == nullptr) {
-        return FILE_ERROR_MEMORY_ALLOCATION;
-    }
 
     if(tga.colorMap.type) {
         tga.colorMap.data = texture.pixels + tga.imageBytesSize;
-        if(fread(tga.colorMap.data, sizeof(unsigned char), colorSize, file) == 0) {
-            return FILE_ERROR_TO_READ;
-        }
+        file.Fread(tga.colorMap.data, sizeof(unsigned char), colorSize);
     }
-    return FILE_SUCCESS;
 }
