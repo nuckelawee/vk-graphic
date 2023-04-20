@@ -25,7 +25,7 @@ public:
         , float pitch_ = 0.0f
         , float yaw_ = -M_PI/2.0f
         , float speedFactor = 1.5f
-        , float slowFactor = 1.1f);
+        , float slowFactor = 1.1f) noexcept;
 
     Camera& operator=(const Camera&) = delete;
     Camera(const Camera&) = delete;

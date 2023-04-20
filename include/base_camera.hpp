@@ -20,7 +20,6 @@ protected:
 
     float speedFactor_;
     float slowFactor_;
-    bool needUpdate_;
 
 protected:
 
@@ -45,7 +44,7 @@ public:
         , float pitch_ = 0.0f
         , float yaw_ = -M_PI/2.0f
         , float speedFactor = 1.5f
-        , float slowFactor = 1.1f);
+        , float slowFactor = 1.1f) noexcept;
 
     BaseCamera& operator=(const BaseCamera&) = default;
     BaseCamera& operator=(BaseCamera&&) = default;

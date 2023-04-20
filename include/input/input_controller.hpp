@@ -1,31 +1,37 @@
 #pragma once
 
-#include "input_context.hpp"
 #include "input_keyboard.hpp"
 #include "input_mouse.hpp"
+#include "cmd/cmd_instruction.hpp"
+
+class BaseCamera;
+class Window;
 
 namespace input {
 
 class Controller {
 
-    Context context_;
-    Keyboard keyboard_;
     Mouse mouse_;
+    Keyboard keyboard_;
 
-    bool mouseFlag_ = false;
+    cmd::Instruction keyCmd_;
+    cmd::Instruction cursorCmd_;
+    cmd::Instruction mouseCmd_;
 
 public:
 
-    Controller() {}
-    Controller(ContextType type, void* context);
+    Controller(BaseCamera& camera, Window& window) noexcept;
+
+    void UpdateAll() noexcept;
 
     void KeyInput(int key, int scancode, int action, int modes) noexcept;
     void CursorPosition(int x, int y) noexcept;
     void MouseButton(int button, int action, int mods) noexcept;
 
-    void Update() noexcept;
+private:
+    void SetDefaultLayout(BaseCamera& camera, Window& window);
 
-    void SwitchContext(ContextType type, void* context) noexcept;
+    void SetCallbacks(GLFWwindow* window) noexcept;
 
 };
 

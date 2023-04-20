@@ -12,8 +12,6 @@ class Timer {
     float deltaTime_ = 0;
     unsigned int fps_ = 0;
     
-private:
-
 public:
     void Update() noexcept;
     static Timer& GetInstance() noexcept;

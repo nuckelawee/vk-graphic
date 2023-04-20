@@ -4,21 +4,23 @@
 #include <GLFW/glfw3.h>
 
 #include <vector>
+#include <array>
+
+#include "cmd/cmd_instruction.hpp"
 
 namespace input {
 
 class Keyboard {
 
-    std::vector<bool> keys_;
+    cmd::Instruction nullCmd_;
+    std::array<cmd::Instruction, GLFW_KEY_LAST> commands_;
 
 public:
 
-    Keyboard();
+    cmd::Instruction KeyInput(int key, int scancode, int action, int modes) const noexcept;
 
-    void KeyInput(int key, int scancode, int action
-        , int modes) noexcept;
-
-    const std::vector<bool>& Keys() const noexcept;
+    void SetCommand(const cmd::Instruction& command, int key) noexcept;
+    void SetCommand(cmd::Instruction&& command, int key) noexcept;
 
 };
 

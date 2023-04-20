@@ -11,13 +11,13 @@ protected:
 
 public:
 
-    Window();
+    Window() noexcept;
 
-    void CloseWindow() noexcept;
+    void Close() noexcept;
     bool Update() noexcept;
 
-    void SetWindowUserPointer(void *pointer) noexcept;
     void GetFramebufferSize(int& width, int& height) const noexcept;
+    GLFWwindow* Access() noexcept;
 
     virtual ~Window();
 

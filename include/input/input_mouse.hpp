@@ -1,5 +1,12 @@
 #pragma once
 
+#include "cmd/cmd_instruction.hpp"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#include <array>
+
 namespace input {
 
 class Mouse {
@@ -7,19 +14,17 @@ class Mouse {
     float xPos_ = 0.0f;
     float yPos_ = 0.0f;
 
-    float xPrevPos_ = 0.0f;
-    float yPrevPos_ = 0.0f;
+    std::array<cmd::Instruction, GLFW_MOUSE_BUTTON_LAST> buttonCmds_;
+    cmd::Instruction cursorCmd_;
 
 public:
 
-    void CursorPosition(float x, float y) noexcept;
-    void Button(int button, int action, int mods) noexcept;
+    cmd::Instruction CursorPosition(float x, float y) noexcept;
+    cmd::Instruction Button(int button, int action, int mods) noexcept;
 
-    float XPosition() const noexcept;
-    float YPosition() const noexcept;
-
-    float DeltaXPos() const noexcept;
-    float DeltaYPos() const noexcept;
+    void SetButtonCommand(const cmd::Instruction& command, int key) noexcept;
+    void SetButtonCommand(cmd::Instruction&& command, int key) noexcept;
+    void SetCursorCommand(cmd::Instruction&& command) noexcept;
 
 };
 
