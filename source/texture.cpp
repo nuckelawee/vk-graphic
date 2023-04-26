@@ -1,6 +1,8 @@
 #include "texture.hpp"
 #include <cstring>
 
+static void reset(Texture& t);
+
 Texture::Texture(const Texture& t) : size(t.size), width(t.width), height(t.height)
     , bytesPerPixel(t.bytesPerPixel), format(t.format) {
 
@@ -11,7 +13,7 @@ Texture::Texture(const Texture& t) : size(t.size), width(t.width), height(t.heig
 Texture::Texture(Texture&& t) : size(t.size), width(t.width), height(t.height)
     , bytesPerPixel(t.bytesPerPixel), format(t.format), pixels(t.pixels) {
 
-    Reset(t);
+    reset(t);
 }
 
 Texture& Texture::operator=(const Texture& t) {
@@ -32,7 +34,7 @@ Texture& Texture::operator=(Texture&& t) {
     bytesPerPixel = t.bytesPerPixel;
     format = t.format;
     pixels = t.pixels;
-    Reset(t);    
+    reset(t);    
     return *this;
 }
 
@@ -40,7 +42,7 @@ Texture::~Texture() {
     delete[] pixels;
 }
 
-void Texture::Reset(Texture& t) {
+static void reset(Texture& t) {
     t.size = 0;
     t.width = 0;
     t.height = 0;

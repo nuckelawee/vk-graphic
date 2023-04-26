@@ -1,8 +1,8 @@
 #pragma once
 
+#include <vector>
 #include <glm/glm.hpp>
 
-#include "vk_descriptor_pool.hpp"
 #include "vk_settings.hpp"
 
 namespace vk {
@@ -12,29 +12,29 @@ class Image;
 
 class DescriptorSet {
 
-    VkDescriptorSetLayout descriptorSetLayout_;
     VkDescriptorSet descriptorSets_[vk::Settings::frames];
+    VkDescriptorSetLayout descriptorSetLayout_;
+    VkDescriptorPool pool_;
+    VkDevice device_;
 
 public:
-    
-    void Create(const Device& device, const DescriptorPool& pool
-        , Buffer *ubos, Image& image);
 
-    void Destroy(const Device& device, const DescriptorPool& pool);
+    void Create(VkDevice device);
 
-    const VkDescriptorSetLayout& AccessLayout() const;
-    VkDescriptorSetLayout& AccessLayout();
+    void BindBuffer(const VkDescriptorBufferInfo& bufferInfo, uint32_t index) noexcept;
+    void BindImage(const VkDescriptorImageInfo& imageInfo, uint32_t index) noexcept;
 
-    const VkDescriptorSet* Access() const;
-    VkDescriptorSet* Access();
+    const VkDescriptorSetLayout& AccessLayout() const noexcept;
+    VkDescriptorSetLayout& AccessLayout() noexcept;
 
-    DescriptorSet() {}
-    ~DescriptorSet() {}
+    const VkDescriptorSet* Access() const noexcept;
+    VkDescriptorSet* Access() noexcept;
 
+    void Destroy() noexcept;
 private:
 
-    void Allocate(const Device& device, const DescriptorPool& pool);
-    void UpdateDescriptorSet(const Device& device, Buffer *ubos, Image& image);
+    void CreatePool();
+    void Allocate();
 
 };
 

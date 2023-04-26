@@ -1,12 +1,13 @@
 #include "vk/vk_descriptor_set.hpp"
 #include "vk/vk_image.hpp"
 #include "vk/vk_buffer.hpp"
+#include "vk/vk_exception.hpp"
 #include "mvp_matrix.hpp"
 
 namespace vk {
 
-void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
-    , Buffer *ubos, Image& image) {
+void DescriptorSet::Create(VkDevice device) {
+    device_ = device;
 
     VkDescriptorSetLayoutBinding uboBinding {};
     uboBinding.binding = 0;
@@ -31,88 +32,101 @@ void DescriptorSet::Create(const Device& device, const DescriptorPool& pool
     layoutInfo.bindingCount = layoutBindingCount;
     layoutInfo.pBindings = layoutBindings;
 
-    VkResult result = vkCreateDescriptorSetLayout(device.Access()
-        , &layoutInfo, nullptr, &descriptorSetLayout_);
-    ErrorManager::Validate(result, "Descriptor set creation");
-
-    Allocate(device, pool);
-    UpdateDescriptorSet(device, ubos, image);
+    VkResult result = vkCreateDescriptorSetLayout(device_, &layoutInfo
+        , nullptr, &descriptorSetLayout_);
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to create descriptor set layout", result);
+    }
+    CreatePool();
+    Allocate();
 }
 
-void DescriptorSet::Allocate(const Device& device, const DescriptorPool& pool) {
+void DescriptorSet::Allocate() {
     VkDescriptorSetLayout setLayouts[vk::Settings::frames] 
         = { descriptorSetLayout_, descriptorSetLayout_ };
     VkDescriptorSetAllocateInfo descriptorInfo {};
     descriptorInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    descriptorInfo.descriptorPool = pool.Access();
+    descriptorInfo.descriptorPool = pool_;
     descriptorInfo.descriptorSetCount = vk::Settings::frames;
     descriptorInfo.pSetLayouts = setLayouts;
 
-    VkResult result = vkAllocateDescriptorSets(device.Access(), &descriptorInfo
+    VkResult result = vkAllocateDescriptorSets(device_, &descriptorInfo
         , descriptorSets_);
-    ErrorManager::Validate(result, "Descriptor set allocation");
-}
-
-void DescriptorSet::UpdateDescriptorSet(const Device& device
-    , Buffer *ubos, Image& image) {
-
-    for(size_t i = 0; i < vk::Settings::frames; ++i) {
-        VkDescriptorBufferInfo bufferInfo {};
-        bufferInfo.buffer = ubos[i].buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(MvpMatrix);
-
-        VkDescriptorImageInfo imageInfo {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = image.view;
-        imageInfo.sampler = image.sampler;
-
-        size_t writeCount = 2;
-        VkWriteDescriptorSet writeDescriptorSets[writeCount] = {};
-        writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[0].dstSet = descriptorSets_[i];
-        writeDescriptorSets[0].dstBinding = 0;
-        writeDescriptorSets[0].dstArrayElement = 0;
-        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        writeDescriptorSets[0].descriptorCount = 1;
-        writeDescriptorSets[0].pBufferInfo = &bufferInfo;
-
-        writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[1].dstSet = descriptorSets_[i];
-        writeDescriptorSets[1].dstBinding = 1;
-        writeDescriptorSets[1].dstArrayElement = 0;
-        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writeDescriptorSets[1].descriptorCount = 1;
-        writeDescriptorSets[1].pImageInfo = &imageInfo;
-
-
-        vkUpdateDescriptorSets(device.Access(), writeCount, writeDescriptorSets
-            , 0, nullptr);
+    if(result != VK_SUCCESS) {
+        throw Exception("Failed to allocate descriptor sets", result);
     }
 }
 
-const VkDescriptorSetLayout& DescriptorSet::AccessLayout() const {
+void DescriptorSet::BindImage(const VkDescriptorImageInfo& imageInfo
+    , uint32_t index) noexcept {
+    VkWriteDescriptorSet writeDescriptorSet {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = descriptorSets_[index];
+    writeDescriptorSet.dstBinding = 1;
+    writeDescriptorSet.dstArrayElement = 0;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device_, 1, &writeDescriptorSet
+        , 0, nullptr);
+}
+
+void DescriptorSet::BindBuffer(const VkDescriptorBufferInfo& bufferInfo
+    , uint32_t index) noexcept {
+
+    VkWriteDescriptorSet writeDescriptorSet {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = descriptorSets_[index];
+    writeDescriptorSet.dstBinding = 0;
+    writeDescriptorSet.dstArrayElement = 0;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(device_, 1, &writeDescriptorSet
+        , 0, nullptr);
+}
+
+void DescriptorSet::CreatePool() {
+    size_t poolCount = 2;
+    VkDescriptorPoolSize poolSizes[poolCount] = {};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = vk::Settings::frames;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = vk::Settings::frames;
+
+    VkDescriptorPoolCreateInfo poolInfo {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = poolCount;
+    poolInfo.pPoolSizes = poolSizes;
+    poolInfo.maxSets = vk::Settings::frames;
+
+    VkResult result = vkCreateDescriptorPool(device_, &poolInfo, nullptr, &pool_);
+    if(result != VK_SUCCESS) {
+        throw Exception("Descriptor pool creation", result);
+    }
+}
+
+const VkDescriptorSetLayout& DescriptorSet::AccessLayout() const noexcept {
     return descriptorSetLayout_;
 }
 
-VkDescriptorSetLayout& DescriptorSet::AccessLayout() {
+VkDescriptorSetLayout& DescriptorSet::AccessLayout() noexcept {
     return descriptorSetLayout_;
 }
 
-const VkDescriptorSet* DescriptorSet::Access() const {
+const VkDescriptorSet* DescriptorSet::Access() const noexcept {
     return descriptorSets_;
 }
 
-VkDescriptorSet* DescriptorSet::Access() {
+VkDescriptorSet* DescriptorSet::Access() noexcept {
     return descriptorSets_;
 }
 
-void DescriptorSet::Destroy(const Device& device
-    , const DescriptorPool& pool) {
-
-    vkFreeDescriptorSets(device.Access(), pool.Access()
-        , vk::Settings::frames, descriptorSets_);
-    vkDestroyDescriptorSetLayout(device.Access(), descriptorSetLayout_, nullptr);
+void DescriptorSet::Destroy() noexcept {
+    vkDestroyDescriptorPool(device_, pool_, nullptr);
+    vkDestroyDescriptorSetLayout(device_, descriptorSetLayout_, nullptr);
 }
 
 } // vk

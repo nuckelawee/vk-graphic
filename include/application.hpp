@@ -1,8 +1,11 @@
 #pragma once
 
+#include <vector>
+
 class IEngine;
 class Window;
 class BaseCamera;
+class Model;
 namespace input { class Controller; }
 
 class Application {
@@ -13,8 +16,8 @@ class Application {
     input::Controller *controller_;
 
 private:
-    void Update();
-    void Init();
+    void Update(std::vector<Model>& models);
+    std::vector<Model> Init();
 
 public:
 

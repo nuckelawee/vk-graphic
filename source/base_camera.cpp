@@ -25,6 +25,10 @@ void BaseCamera::Update() noexcept {
     UpdateMatrices();
 }
 
+const MvpMatrix* BaseCamera::Matrix() const noexcept {
+    return &camera_;
+}
+
 void BaseCamera::Rotate(float deltaPitch, float deltaYaw) noexcept {
 
     pitch_ += deltaPitch; 

@@ -3,6 +3,8 @@
 #include "vk_device.hpp"
 #include <map>
 
+class Model;
+
 namespace vk {
 
 class ModelStorage;
@@ -23,6 +25,7 @@ public:
         , VkCommandPool pool, uint32_t bufferCount);
 
     static void RecordDrawCommands(VkCommandBuffer& commandBuffer
+        , const std::vector<Model>& models
         , VkFramebuffer framebuffer, VkDescriptorSet descriptorSet
         , GraphicPipeline& pipeline, ModelStorage& ModelStorage);
 

@@ -28,6 +28,7 @@ protected:
 public:
 
     virtual void Update() noexcept;
+    const MvpMatrix* Matrix() const noexcept;
 
     void Rotate(float deltaPitch, float deltaYaw) noexcept;
 

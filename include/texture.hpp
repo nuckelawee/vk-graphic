@@ -21,8 +21,4 @@ struct Texture {
     Texture& operator=(const Texture& t);
     Texture& operator=(Texture&& t);
 
-public:
-
-    void Reset(Texture& t);
-
 };

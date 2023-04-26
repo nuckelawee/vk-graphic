@@ -1,19 +1,37 @@
 #pragma once
 
-#include "vk_mesh_loader.hpp"
-#include "vk_texture_loader.hpp"
-#include "vk_model.hpp"
-#include "vk_image.hpp"
-
-#include <unordered_map>
+#include "vk/vk_buffer.hpp"
+#include "vk/vk_image.hpp"
+#include "mesh.hpp"
+#include "model.hpp"
 
 namespace vk {
 
-struct ModelView {
-    Image image;
-    Mesh mesh;
-};
+class ModelStorage {
 
+    struct ModelFamily {
+        std::vector<Mesh> meshes;
+        std::vector<Image> images;
+
+        Buffer vertices;
+        Buffer indices;
+    };
+
+    std::vector<ModelFamily> families_;
+    VkDevice device_;
+
+public:
+    void Init(VkDevice device) noexcept;
+
+    uint32_t Insert(Buffer vertices, Buffer indices, std::vector<Mesh>&& meshes
+        , std::vector<Image>&& images) noexcept;
+
+    void DrawModels(const std::vector<Model>& models, VkCommandBuffer commandBuffer
+        , VkPipelineLayout pipelineLayout, VkDescriptorSet descriptorSet) noexcept;
+
+    void Destroy() noexcept;
+};
+/*
 class ModelStorage {
 
     std::unordered_map<std::string, Model> models_;
@@ -47,5 +65,5 @@ private:
     ModelStorage(const ModelStorage& modelStorage) = delete;
 
 };
-
+*/
 } //vk

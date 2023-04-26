@@ -54,6 +54,7 @@ void Instance::IncludeDefaultLayersAndExtensions(
     }
 
 #ifdef DEBUG
+    /*
     const std::vector<const char*> validationLayer =
     { "VK_LAYER_KHRONOS_validation" };
 
@@ -61,6 +62,7 @@ void Instance::IncludeDefaultLayersAndExtensions(
     if(result != VK_SUCCESS) {
         throw Exception("Validation layer doesn't active", result);
     }
+    */
 #endif
 }
 

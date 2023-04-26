@@ -78,6 +78,7 @@ std::vector<VkCommandBuffer> CommandManager::CreateCommandBuffers(VkDevice devic
 }
 
 void CommandManager::RecordDrawCommands(VkCommandBuffer& commandBuffer
+    , const std::vector<Model>& models
     , VkFramebuffer framebuffer, VkDescriptorSet descriptorSet
     , GraphicPipeline& pipeline, ModelStorage& modelStorage) {
 
@@ -93,7 +94,7 @@ void CommandManager::RecordDrawCommands(VkCommandBuffer& commandBuffer
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    modelStorage.DrawModels(commandBuffer, pipeline.AccessLayout(), descriptorSet);
+    modelStorage.DrawModels(models, commandBuffer, pipeline.AccessLayout(), descriptorSet);
 
     vkCmdEndRenderPass(commandBuffer);
     VkResult result = vkEndCommandBuffer(commandBuffer);

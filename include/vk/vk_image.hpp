@@ -10,6 +10,8 @@ struct Image {
     VkDeviceMemory memory;
     VkImageView view;
     VkSampler sampler;
+
+    void Destroy(VkDevice device);
 };
 
 }

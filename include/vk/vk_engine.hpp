@@ -11,12 +11,16 @@
 #include "vk_regulator.hpp"
 #include "vk_model_storage.hpp"
 #include "vk_descriptor_set.hpp"
+#include "vk_image_builder.hpp"
+#include "vk_buffer_builder.hpp"
 
 #include "engine.hpp"
 
+struct MvpMatrix;
+
 namespace vk {
 
-class Engine : public IEngine {
+class Engine final : public IEngine {
 
     Device device_;
     Swapchain swapchain_;
@@ -25,7 +29,6 @@ class Engine : public IEngine {
     GraphicPipeline pipeline_;
     Instance instance_;
     DescriptorSet descriptorSet_;
-    DescriptorPool descriptorPool_;
     CommandManager commandManager_;
 
     ModelStorage modelStorage_;
@@ -35,17 +38,22 @@ class Engine : public IEngine {
     VkCommandPool graphicPool_;
     std::vector<VkCommandBuffer> graphicCommands_;
 
-    std::array<Buffer, vk::Settings::frames> ubos_;
+    std::vector<Buffer> ubos_;
     Surface* surface_;
+
+    const MvpMatrix* cameraData_;
 
 public:
 
     virtual Window* Init() override; 
-    virtual void Update() override;
-    virtual BaseCamera* CreateCamera() noexcept override;
+    virtual void Render(const std::vector<Model>& models) override;
+    virtual std::vector<Model> Bind(ModelSet& modelSet) override;
 
+    virtual BaseCamera* CreateCamera() noexcept override;
+    virtual void DestroyCamera(BaseCamera* camera) noexcept override;
 private:
     
+    void UpdateCamera() noexcept;
     void Acquire() noexcept;
     void Present(VkPresentInfoKHR& presentInfo);
 
